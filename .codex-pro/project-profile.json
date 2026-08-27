@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "projectName": "SPIS Interactive AI Robot",
+  "root": "C:\\Users\\User\\Documents\\ChatGPT\\robot de ai que puede detectar rasgo faciales",
+  "detected": {
+    "files": ["README.md", "requirements.txt"],
+    "sourceDirectories": ["src", "tests"],
+    "packageManager": "unknown",
+    "scripts": {}
+  },
+  "verified": {
+    "commands": [
+      ".venv\\Scripts\\python.exe -m unittest discover -s tests -v",
+      ".venv\\Scripts\\python.exe src\\setup_assets.py",
+      ".venv\\Scripts\\python.exe src\\train.py",
+      ".venv\\Scripts\\python.exe src\\chat_console.py --help",
+      ".venv\\Scripts\\python.exe src\\live_demo.py --help",
+      ".venv\\Scripts\\python.exe src\\voice_demo.py --help",
+      ".venv\\Scripts\\python.exe src\\interactive_robot.py --help"
+    ],
+    "criticalModules": ["src/hand_tracker.py", "src/gesture_features.py", "src/gesture_gate.py", "src/capture_quality.py", "src/train.py", "src/live_demo.py", "src/interactive_robot.py", "src/conversation.py", "src/robot_runtime.py", "src/object_game.py", "src/speech.py", "src/music.py", "src/robot_face.py", "src/import_hagrid.py"],
+    "criticalTests": ["tests/test_data_io.py", "tests/test_capture_quality.py", "tests/test_gesture_features.py", "tests/test_gesture_gate.py", "tests/test_gesture_model.py", "tests/test_hagrid_import.py", "tests/test_conversation.py", "tests/test_robot_runtime.py", "tests/test_object_game.py", "tests/test_music.py", "tests/test_robot_face.py", "tests/test_robot_state.py"],
+    "conventions": ["Python 3.11+, relative paths, landmark-only training data, MediaPipe Tasks API"]
+  },
+  "notes": "Created manually. A local Python 3.12 virtual environment, local Ollama llama3.2:1b model, and Piper en_US-lessac-medium neural voice are verified in this project. The microphone device still needs a live user calibration. Inspect and promote only facts verified in this project."
+}

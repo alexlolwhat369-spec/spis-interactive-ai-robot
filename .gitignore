@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.py[cod]
+data/landmarks.csv
+data/pending_object_suggestions.jsonl
+data/game_trials.jsonl
+data/object_game_calibration.json
+model/*.npz
+models/*.task
+models/*.zip
+models/vosk-model-*/
+models/voices/
+reports/*.csv
+reports/*.json

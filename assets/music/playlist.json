@@ -1,0 +1,8 @@
+{
+  "tracks": [
+    {"title": "Calm Loop", "category": "calm", "path": "assets/music/calm_loop.wav"},
+    {"title": "Warm Loop", "category": "warm", "path": "assets/music/warm_loop.wav"},
+    {"title": "Energy Loop", "category": "energetic", "path": "assets/music/energy_loop.wav"},
+    {"title": "Celebration Loop", "category": "celebration", "path": "assets/music/celebration_loop.wav"}
+  ]
+}

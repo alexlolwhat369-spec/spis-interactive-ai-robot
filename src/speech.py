@@ -1,0 +1,185 @@
+"""Local speech synthesis and small, explainable delivery controls."""
+
+from __future__ import annotations
+
+import base64
+import io
+import os
+import shutil
+import subprocess
+import tempfile
+import wave
+from dataclasses import dataclass
+from pathlib import Path
+import re
+
+
+@dataclass(frozen=True)
+class SpeechStyle:
+    """Piper controls for one short phrase; lower length means faster speech."""
+
+    length_scale: float
+    noise_scale: float
+    noise_w_scale: float
+
+
+@dataclass(frozen=True)
+class SpeechSegment:
+    text: str
+    style: SpeechStyle
+
+
+NEUTRAL_STYLE = SpeechStyle(length_scale=0.90, noise_scale=0.80, noise_w_scale=0.90)
+REACTION_STYLES = {
+    "happy": SpeechStyle(length_scale=0.85, noise_scale=0.86, noise_w_scale=0.96),
+    "proud": SpeechStyle(length_scale=0.80, noise_scale=0.92, noise_w_scale=1.02),
+    "heart": SpeechStyle(length_scale=0.98, noise_scale=0.74, noise_w_scale=0.84),
+    "confused": SpeechStyle(length_scale=1.00, noise_scale=0.72, noise_w_scale=0.82),
+    "listening": SpeechStyle(length_scale=0.98, noise_scale=0.76, noise_w_scale=0.86),
+    "thinking": SpeechStyle(length_scale=0.96, noise_scale=0.76, noise_w_scale=0.88),
+    "speaking": NEUTRAL_STYLE,
+    "idle": NEUTRAL_STYLE,
+}
+QUESTION_STYLE = SpeechStyle(length_scale=0.97, noise_scale=0.84, noise_w_scale=0.98)
+EMPHATIC_STYLE = SpeechStyle(length_scale=0.78, noise_scale=0.96, noise_w_scale=1.06)
+
+
+def plan_speech(text: str, reaction: str | None = None) -> list[SpeechSegment]:
+    """Split a reply into audible phrases and give each a deliberate delivery style.
+
+    Piper does not understand SSML emotion tags, so the planner stays honest: it
+    controls pace and natural variation, with punctuation marking an emphasis or
+    a question. A future trained expressive voice can use this same segment plan.
+    """
+    cleaned = " ".join(text.split())
+    if not cleaned:
+        return []
+    base_style = REACTION_STYLES.get((reaction or "").lower(), NEUTRAL_STYLE)
+    phrases = re.findall(r"[^.!?]+[.!?]*", cleaned)
+    if not phrases:
+        phrases = [cleaned]
+    segments: list[SpeechSegment] = []
+    for phrase in phrases:
+        phrase = phrase.strip()
+        if not phrase:
+            continue
+        style = QUESTION_STYLE if phrase.endswith("?") else EMPHATIC_STYLE if phrase.endswith("!") else base_style
+        segments.append(SpeechSegment(phrase, style))
+    return segments
+
+
+class LocalSpeaker:
+    def __init__(self, voice_name: str = "Microsoft Zira Desktop", voice_rate: int = 4) -> None:
+        self.voice_name = voice_name
+        self.voice_rate = max(-10, min(10, voice_rate))
+
+    def speak(self, text: str, reaction: str | None = None) -> bool:
+        """Speak locally without sending the visitor's words to a cloud service."""
+        executable = shutil.which("espeak-ng") or shutil.which("espeak")
+        if executable:
+            words_per_minute = 175 + self.voice_rate * 9
+            completed = subprocess.run([executable, "-v", "en-us", "-s", str(words_per_minute), text], check=False)
+            return completed.returncode == 0
+        if os.name == "nt" and shutil.which("powershell"):
+            # Base64 keeps visitor text and the configurable voice out of the PowerShell source.
+            encoded = base64.b64encode(text.encode("utf-8")).decode("ascii")
+            encoded_voice = base64.b64encode(self.voice_name.encode("utf-8")).decode("ascii")
+            script = (
+                "Add-Type -AssemblyName System.Speech; "
+                "$voice = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+                f"$text = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{encoded}')); "
+                f"$voiceName = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{encoded_voice}')); "
+                "try { $voice.SelectVoice($voiceName) } catch {} ; "
+                f"$voice.Rate = {self.voice_rate}; "
+                "$voice.Speak($text)"
+            )
+            completed = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", script],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return completed.returncode == 0
+        return False
+
+
+class PiperSpeaker:
+    """A natural local neural voice with phrase-by-phrase delivery controls."""
+
+    def __init__(
+        self,
+        model_path: Path,
+        length_scale: float = NEUTRAL_STYLE.length_scale,
+        noise_scale: float = NEUTRAL_STYLE.noise_scale,
+        noise_w_scale: float = NEUTRAL_STYLE.noise_w_scale,
+    ) -> None:
+        if not model_path.is_file():
+            raise FileNotFoundError(f"Piper voice model not found: {model_path}")
+        try:
+            from piper import PiperVoice, SynthesisConfig
+        except ImportError as error:
+            raise RuntimeError("Install the speech dependencies with: python -m pip install -r requirements.txt") from error
+        self._voice = PiperVoice.load(str(model_path))
+        self._default_style = SpeechStyle(
+            length_scale=length_scale,
+            noise_scale=noise_scale,
+            noise_w_scale=noise_w_scale,
+        )
+
+    def speak(self, text: str, reaction: str | None = None) -> bool:
+        segments = plan_speech(text, reaction)
+        if not segments:
+            return True
+        temporary_file = tempfile.NamedTemporaryFile(prefix="spis-robot-", suffix=".wav", delete=False)
+        path = Path(temporary_file.name)
+        temporary_file.close()
+        try:
+            with wave.open(str(path), "wb") as wav_file:
+                for segment in segments:
+                    style = segment.style if reaction is not None else self._default_style
+                    config = self._synthesis_config(style)
+                    # Piper initializes a WAV header for every synthesis call.
+                    # Keep each phrase in memory, then append its PCM frames to
+                    # one visitor-facing audio file.
+                    phrase_buffer = io.BytesIO()
+                    with wave.open(phrase_buffer, "wb") as phrase_wav:
+                        self._voice.synthesize_wav(segment.text, phrase_wav, syn_config=config)
+                    phrase_buffer.seek(0)
+                    with wave.open(phrase_buffer, "rb") as phrase_wav:
+                        if wav_file.getnframes() == 0:
+                            wav_file.setparams(phrase_wav.getparams())
+                        elif _audio_format(wav_file) != _audio_format(phrase_wav):
+                            raise RuntimeError("Piper returned incompatible audio settings between phrases.")
+                        wav_file.writeframes(phrase_wav.readframes(phrase_wav.getnframes()))
+            if os.name == "nt":
+                import winsound
+
+                winsound.PlaySound(str(path), winsound.SND_FILENAME)
+                return True
+            player = shutil.which("aplay")
+            if player:
+                return subprocess.run([player, str(path)], check=False).returncode == 0
+            return False
+        finally:
+            path.unlink(missing_ok=True)
+
+    @staticmethod
+    def _synthesis_config(style: SpeechStyle):
+        from piper import SynthesisConfig
+
+        return SynthesisConfig(
+            length_scale=style.length_scale,
+            noise_scale=style.noise_scale,
+            noise_w_scale=style.noise_w_scale,
+        )
+
+
+def _audio_format(wav_file: wave.Wave_read | wave.Wave_write) -> tuple[int, int, int, str, str]:
+    """Return only header values that must agree before PCM frames are appended."""
+    return (
+        wav_file.getnchannels(),
+        wav_file.getsampwidth(),
+        wav_file.getframerate(),
+        wav_file.getcomptype(),
+        wav_file.getcompname(),
+    )

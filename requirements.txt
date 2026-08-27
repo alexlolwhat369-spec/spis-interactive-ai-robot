@@ -1,0 +1,8 @@
+mediapipe>=0.10.0,<0.11
+numpy>=1.26,<3
+# MediaPipe also needs OpenCV's optional modules. Do not install opencv-python
+# alongside this package because both distributions provide the cv2 module.
+opencv-contrib-python>=4.9,<5
+sounddevice>=0.5,<0.6
+vosk>=0.3,<0.4
+piper-tts>=1.4,<2
