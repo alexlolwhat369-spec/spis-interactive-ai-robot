@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SPIS Interactive AI Robot</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: #121820;
+      --edge: #1f2a36;
+      --cyan: #5ae8ff;
+      --coral: #ff5546;
+      --text: #e8f1ef;
+      --muted: #7d8b98;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(1200px 600px at 50% -10%, #16202b 0%, var(--bg) 60%);
+      color: var(--text);
+      font-family: "SF Pro Text", -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    header {
+      padding: 22px 24px 8px;
+      text-align: center;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--cyan);
+    }
+    header p { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+    main {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--edge);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+      flex: 1 1 480px;
+      max-width: 640px;
+    }
+    .panel h2 {
+      margin: 0;
+      padding: 12px 16px;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--edge);
+    }
+    .panel img {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #05080b;
+    }
+    .status {
+      display: flex;
+      gap: 28px;
+      justify-content: center;
+      flex-wrap: wrap;
+      padding: 4px 20px 24px;
+    }
+    .stat { text-align: center; }
+    .stat .label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+    .stat .value { font-size: 22px; font-weight: 600; color: var(--cyan); margin-top: 2px; text-transform: capitalize; }
+    .legend {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding: 0 20px 32px;
+    }
+    .legend span {
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px solid var(--edge);
+      border-radius: 999px;
+      padding: 4px 12px;
+    }
+    .voice {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 4px 20px 20px;
+    }
+    #mic {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--bg);
+      background: var(--cyan);
+      border: none;
+      border-radius: 999px;
+      padding: 14px 28px;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      transition: transform 0.08s ease, background 0.15s ease;
+    }
+    #mic:active, #mic.recording { background: var(--coral); color: #fff; transform: scale(1.04); }
+    #mic:disabled { background: var(--edge); color: var(--muted); cursor: not-allowed; }
+    .voice .hint { font-size: 12px; color: var(--muted); }
+    .transcript {
+      max-width: 620px;
+      width: 100%;
+      text-align: center;
+      min-height: 40px;
+    }
+    .transcript .heard { color: var(--muted); font-size: 14px; }
+    .transcript .reply { color: var(--text); font-size: 16px; margin-top: 4px; }
+    .transcript .note { color: var(--coral); font-size: 12px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>SPIS Interactive AI Robot</h1>
+    <p>Show a gesture to the camera &mdash; the robot reacts in real time.</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>Camera</h2>
+      <img src="/camera.mjpg" alt="Live camera feed" />
+    </section>
+    <section class="panel">
+      <h2>Robot</h2>
+      <img src="/face.mjpg" alt="Animated robot face" />
+    </section>
+  </main>
+
+  <div class="status">
+    <div class="stat">
+      <div class="label">Gesture</div>
+      <div class="value" id="gesture">&mdash;</div>
+    </div>
+    <div class="stat">
+      <div class="label">Reaction</div>
+      <div class="value" id="reaction">&mdash;</div>
+    </div>
+    <div class="stat">
+      <div class="label">Confidence</div>
+      <div class="value" id="confidence">&mdash;</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span>👋 wave</span>
+    <span>👍 thumbs_up</span>
+    <span>✌️ peace</span>
+    <span>✋ stop</span>
+    <span>🫶 heart (two hands)</span>
+  </div>
+
+  <div class="voice" id="voice" hidden>
+    <button id="mic" disabled>🎤 Hold to talk</button>
+    <div class="hint">Hold the button or the Spacebar, speak, then release.</div>
+    <div class="transcript">
+      <div class="heard" id="heard"></div>
+      <div class="reply" id="reply"></div>
+      <div class="note" id="note"></div>
+    </div>
+  </div>
+
+  <script>
+    async function pollState() {
+      try {
+        const res = await fetch("/state", { cache: "no-store" });
+        if (res.ok) {
+          const s = await res.json();
+          document.getElementById("gesture").textContent = s.gesture ?? "—";
+          document.getElementById("reaction").textContent = s.reaction ?? "—";
+          document.getElementById("confidence").textContent =
+            s.confidence ? Math.round(s.confidence * 100) + "%" : "—";
+        }
+      } catch (_) { /* server not ready yet */ }
+    }
+    setInterval(pollState, 500);
+    pollState();
+
+    // ---- Hold-to-talk voice ----
+    const TARGET_RATE = 16000;
+    const micBtn = document.getElementById("mic");
+    const voiceBox = document.getElementById("voice");
+    const heardEl = document.getElementById("heard");
+    const replyEl = document.getElementById("reply");
+    const noteEl = document.getElementById("note");
+
+    let audioCtx = null;
+    let mediaStream = null;
+    let processor = null;
+    let sourceNode = null;
+    let chunks = [];
+    let recording = false;
+    let busy = false;
+
+    async function initVoice() {
+      try {
+        const res = await fetch("/voice/available", { cache: "no-store" });
+        const info = await res.json();
+        if (!info.available) return; // keep camera UI, no mic
+        voiceBox.hidden = false;
+        micBtn.disabled = false;
+      } catch (_) { /* voice endpoint absent */ }
+    }
+
+    function floatTo16kPCM(buffer, inputRate) {
+      // Linear-resample mono Float32 to 16 kHz, then to little-endian Int16.
+      const ratio = inputRate / TARGET_RATE;
+      const outLength = Math.floor(buffer.length / ratio);
+      const out = new Int16Array(outLength);
+      for (let i = 0; i < outLength; i++) {
+        const pos = i * ratio;
+        const idx = Math.floor(pos);
+        const frac = pos - idx;
+        const s = (buffer[idx] || 0) * (1 - frac) + (buffer[idx + 1] || 0) * frac;
+        const clamped = Math.max(-1, Math.min(1, s));
+        out[i] = clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff;
+      }
+      return out;
+    }
+
+    async function startRecording() {
+      if (recording || busy) return;
+      recording = true;
+      chunks = [];
+      micBtn.classList.add("recording");
+      micBtn.textContent = "🎙️ Listening…";
+      noteEl.textContent = "";
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        sourceNode = audioCtx.createMediaStreamSource(mediaStream);
+        processor = audioCtx.createScriptProcessor(4096, 1, 1);
+        processor.onaudioprocess = (e) => {
+          chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+        };
+        sourceNode.connect(processor);
+        processor.connect(audioCtx.destination);
+        fetch("/voice/listening", { method: "POST" });
+      } catch (err) {
+        recording = false;
+        micBtn.classList.remove("recording");
+        micBtn.textContent = "🎤 Hold to talk";
+        noteEl.textContent = "Microphone blocked. Allow mic access and retry.";
+      }
+    }
+
+    function teardownAudio() {
+      if (processor) { processor.disconnect(); processor.onaudioprocess = null; }
+      if (sourceNode) sourceNode.disconnect();
+      if (mediaStream) mediaStream.getTracks().forEach((t) => t.stop());
+      if (audioCtx) audioCtx.close();
+      processor = sourceNode = mediaStream = audioCtx = null;
+    }
+
+    async function stopRecording() {
+      if (!recording) return;
+      recording = false;
+      micBtn.classList.remove("recording");
+      const inputRate = audioCtx ? audioCtx.sampleRate : 48000;
+      const total = chunks.reduce((n, c) => n + c.length, 0);
+      const merged = new Float32Array(total);
+      let offset = 0;
+      for (const c of chunks) { merged.set(c, offset); offset += c.length; }
+      teardownAudio();
+
+      if (total === 0) { micBtn.textContent = "🎤 Hold to talk"; return; }
+      const pcm = floatTo16kPCM(merged, inputRate);
+
+      busy = true;
+      micBtn.disabled = true;
+      micBtn.textContent = "🤔 Thinking…";
+      try {
+        const res = await fetch("/voice", {
+          method: "POST",
+          headers: { "Content-Type": "application/octet-stream" },
+          body: pcm.buffer,
+        });
+        const data = await res.json();
+        heardEl.textContent = data.heard ? `You: ${data.heard}` : "(didn't catch that)";
+        replyEl.textContent = data.reply || "";
+        noteEl.textContent = data.provider_error ? "Ollama offline — using local replies." : "";
+        await playReply(data.audio_b64);
+      } catch (err) {
+        noteEl.textContent = "Voice request failed.";
+      } finally {
+        fetch("/voice/done", { method: "POST" });
+        busy = false;
+        micBtn.disabled = false;
+        micBtn.textContent = "🎤 Hold to talk";
+      }
+    }
+
+    function playReply(b64) {
+      return new Promise((resolve) => {
+        if (!b64) return resolve();
+        const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+        const url = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+        const audio = new Audio(url);
+        audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+        audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+        audio.play().catch(() => resolve());
+      });
+    }
+
+    micBtn.addEventListener("mousedown", startRecording);
+    micBtn.addEventListener("mouseup", stopRecording);
+    micBtn.addEventListener("mouseleave", () => { if (recording) stopRecording(); });
+    micBtn.addEventListener("touchstart", (e) => { e.preventDefault(); startRecording(); }, { passive: false });
+    micBtn.addEventListener("touchend", (e) => { e.preventDefault(); stopRecording(); }, { passive: false });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Space" && !e.repeat && !micBtn.disabled) { e.preventDefault(); startRecording(); }
+    });
+    document.addEventListener("keyup", (e) => {
+      if (e.code === "Space") { e.preventDefault(); stopRecording(); }
+    });
+
+    initVoice();
+  </script>
+</body>
+</html>

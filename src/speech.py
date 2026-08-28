@@ -166,31 +166,45 @@ class PiperSpeaker:
             noise_w_scale=noise_w_scale,
         )
 
-    def speak(self, text: str, reaction: str | None = None) -> bool:
+    def synthesize_wav_bytes(self, text: str, reaction: str | None = None) -> bytes:
+        """Render a reply to a single in-memory WAV without playing it.
+
+        Same phrase-by-phrase delivery as ``speak()``; returns the WAV bytes so a
+        caller (e.g. the web UI) can stream them to a browser instead of a speaker.
+        Returns ``b""`` when there is nothing to say.
+        """
         segments = plan_speech(text, reaction)
         if not segments:
+            return b""
+        output = io.BytesIO()
+        with wave.open(output, "wb") as wav_file:
+            for segment in segments:
+                style = segment.style if reaction is not None else self._default_style
+                config = self._synthesis_config(style)
+                # Piper initializes a WAV header for every synthesis call.
+                # Keep each phrase in memory, then append its PCM frames to
+                # one visitor-facing audio file.
+                phrase_buffer = io.BytesIO()
+                with wave.open(phrase_buffer, "wb") as phrase_wav:
+                    self._voice.synthesize_wav(segment.text, phrase_wav, syn_config=config)
+                phrase_buffer.seek(0)
+                with wave.open(phrase_buffer, "rb") as phrase_wav:
+                    if wav_file.getnframes() == 0:
+                        wav_file.setparams(phrase_wav.getparams())
+                    elif _audio_format(wav_file) != _audio_format(phrase_wav):
+                        raise RuntimeError("Piper returned incompatible audio settings between phrases.")
+                    wav_file.writeframes(phrase_wav.readframes(phrase_wav.getnframes()))
+        return output.getvalue()
+
+    def speak(self, text: str, reaction: str | None = None) -> bool:
+        audio = self.synthesize_wav_bytes(text, reaction)
+        if not audio:
             return True
         temporary_file = tempfile.NamedTemporaryFile(prefix="spis-robot-", suffix=".wav", delete=False)
         path = Path(temporary_file.name)
         temporary_file.close()
         try:
-            with wave.open(str(path), "wb") as wav_file:
-                for segment in segments:
-                    style = segment.style if reaction is not None else self._default_style
-                    config = self._synthesis_config(style)
-                    # Piper initializes a WAV header for every synthesis call.
-                    # Keep each phrase in memory, then append its PCM frames to
-                    # one visitor-facing audio file.
-                    phrase_buffer = io.BytesIO()
-                    with wave.open(phrase_buffer, "wb") as phrase_wav:
-                        self._voice.synthesize_wav(segment.text, phrase_wav, syn_config=config)
-                    phrase_buffer.seek(0)
-                    with wave.open(phrase_buffer, "rb") as phrase_wav:
-                        if wav_file.getnframes() == 0:
-                            wav_file.setparams(phrase_wav.getparams())
-                        elif _audio_format(wav_file) != _audio_format(phrase_wav):
-                            raise RuntimeError("Piper returned incompatible audio settings between phrases.")
-                        wav_file.writeframes(phrase_wav.readframes(phrase_wav.getnframes()))
+            path.write_bytes(audio)
             if os.name == "nt":
                 import winsound
 
@@ -212,6 +226,16 @@ class PiperSpeaker:
             noise_scale=style.noise_scale,
             noise_w_scale=style.noise_w_scale,
         )
+
+
+def wav_duration_seconds(data: bytes) -> float:
+    """Playback length of an in-memory WAV, used to time the robot's speaking state."""
+    if not data:
+        return 0.0
+    with wave.open(io.BytesIO(data), "rb") as wav_file:
+        frames = wav_file.getnframes()
+        rate = wav_file.getframerate()
+    return frames / rate if rate else 0.0
 
 
 def _audio_format(wav_file: wave.Wave_read | wave.Wave_write) -> tuple[int, int, int, str, str]:

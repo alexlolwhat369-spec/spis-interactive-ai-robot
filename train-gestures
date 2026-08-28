@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Capture the five hand gestures from your webcam, then train the KNN model that
+# the web UI needs. Each gesture opens an OpenCV window:
+#   press  C  to capture a sample (hold the gesture),  Q  to move to the next one.
+# Optional: pass a camera index, e.g.  ./train-gestures 1
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT"
+VENV="$ROOT/.venv"
+CAMERA="${1:-0}"
+
+if [ ! -d "$VENV" ]; then
+  echo "ERROR: no virtual environment. Run ./setup first." >&2
+  exit 1
+fi
+if [ ! -f "$ROOT/models/hand_landmarker.task" ]; then
+  echo "ERROR: hand model missing. Run ./setup first." >&2
+  exit 1
+fi
+
+# shellcheck disable=SC1091
+source "$VENV/bin/activate"
+
+LABELS=(wave thumbs_up peace stop heart)
+echo "About to capture ${#LABELS[@]} gestures (camera $CAMERA)."
+echo "In each window: hold the gesture, press C to capture (~180 samples), Q when done."
+echo
+
+for label in "${LABELS[@]}"; do
+  echo "==> Capturing: $label"
+  python src/collect_samples.py --label "$label" --camera "$CAMERA"
+  echo
+done
+
+echo "==> Training the gesture model"
+python src/train.py
+
+echo
+echo "Done. Model written to model/gesture_knn.npz"
+echo "Accuracy report: reports/evaluation.json"
+echo "Now run: ./start"

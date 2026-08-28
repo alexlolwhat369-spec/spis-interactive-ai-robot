@@ -6,3 +6,5 @@ opencv-contrib-python>=4.9,<5
 sounddevice>=0.5,<0.6
 vosk>=0.3,<0.4
 piper-tts>=1.4,<2
+# Web UI (camera + robot face in the browser). Standard-library-friendly, no build step.
+flask>=3,<4
