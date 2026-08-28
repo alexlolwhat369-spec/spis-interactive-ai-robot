@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import unittest
 
-from src.speech import EMPHATIC_STYLE, NEUTRAL_STYLE, QUESTION_STYLE, plan_speech
+from src.speech import (
+    EMPHATIC_STYLE,
+    NEUTRAL_STYLE,
+    QUESTION_STYLE,
+    clean_spoken_text,
+    plan_speech,
+    preferred_windows_voice,
+)
 
 
 class SpeechPlanTests(unittest.TestCase):
@@ -26,3 +33,14 @@ class SpeechPlanTests(unittest.TestCase):
 
     def test_empty_reply_has_no_audio_segments(self) -> None:
         self.assertEqual(plan_speech("   ", "happy"), [])
+
+    def test_display_markup_is_not_read_aloud(self) -> None:
+        text = "**Great!** Read [the guide](https://example.com), not `code`."
+
+        self.assertEqual(clean_spoken_text(text), "Great! Read the guide, not code.")
+
+    def test_windows_voice_prefers_a_natural_installed_voice(self) -> None:
+        installed = ["Microsoft David Desktop", "Microsoft Aria Natural", "Microsoft Zira Desktop"]
+
+        self.assertEqual(preferred_windows_voice(installed), "Microsoft Aria Natural")
+        self.assertEqual(preferred_windows_voice(installed, "Microsoft Zira Desktop"), "Microsoft Zira Desktop")

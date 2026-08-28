@@ -65,8 +65,35 @@ class RobotRuntimeTests(unittest.TestCase):
         self.assertEqual(answer_from_text("I think not"), "probably_not")
         self.assertEqual(answer_from_text("I am not sure"), "maybe")
         self.assertEqual(answer_from_text("No idea"), "maybe")
+        self.assertEqual(answer_from_text("maybe"), "maybe")
+        self.assertEqual(answer_from_text("could be"), "maybe")
         self.assertEqual(answer_from_text("probably"), "probably")
         self.assertEqual(answer_from_text("probably not"), "probably_not")
+        self.assertIsNone(answer_from_text("I like pizza"))
+
+    def test_unrecognized_game_answer_repeats_without_consuming_question(self) -> None:
+        opening = self.session.respond("Play Alkinator")
+        pending_attribute = self.session.pending_attribute
+        asked = list(self.session.game.asked)
+
+        result = self.session.respond("I like pizza")
+
+        self.assertTrue(opening.game_active)
+        self.assertTrue(result.game_active)
+        self.assertEqual(self.session.pending_attribute, pending_attribute)
+        self.assertEqual(self.session.game.asked, asked)
+        self.assertIn("did not catch a game answer", result.conversation.command.reply)
+
+    def test_repeating_game_request_restarts_a_clean_round(self) -> None:
+        self.session.respond("Play the object game")
+        self.session.respond("yes")
+        self.assertGreater(len(self.session.game.asked), 1)
+
+        restarted = self.session.respond("Start Akinator again")
+
+        self.assertTrue(restarted.game_active)
+        self.assertEqual(len(self.session.game.asked), 1)
+        self.assertIn("Starting a new round", restarted.conversation.command.reply)
 
     def test_correct_guess_finishes_the_game(self) -> None:
         self.session.game = ObjectGuessingGame(

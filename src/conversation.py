@@ -51,10 +51,26 @@ class ConversationProvider(Protocol):
     def respond(self, message: str) -> ConversationResult: ...
 
 
+def is_game_request(message: str) -> bool:
+    """Recognize explicit object-game requests, including common speech-to-text variants."""
+    text = re.sub(r"[^a-z0-9' ]+", " ", message.lower())
+    text = " ".join(text.split())
+    patterns = (
+        r"\bguess(?:ing)? (?:game|my object|the object|what i(?:'m| am) thinking)\b",
+        r"\b(?:play|start|try|do) (?:a |the )?(?:object )?game\b",
+        r"\bobject (?:guessing )?game\b",
+        r"\b(?:twenty|20) questions\b",
+        r"\bcan you guess (?:it|my object|what i(?:'m| am) thinking)\b",
+        # Vosk may insert a space, and visitors often pronounce or spell it "Alkinator".
+        r"\ba\s*l?\s*kinat(?:or|er)\b",
+    )
+    return any(re.search(pattern, text) for pattern in patterns)
+
+
 def explicit_action_result(message: str) -> ConversationResult | None:
     """Handle reliable robot commands locally before an LLM can reinterpret them."""
     text = message.lower().strip()
-    if re.search(r"\b(guessing game|akinator|guess an object|play (a |the )?game|twenty questions|20 questions)\b", text):
+    if is_game_request(message):
         return ConversationResult(
             RobotCommand("Think of one object. I will ask questions and try to guess it.", Reaction.PROUD, Action.START_GAME)
         )

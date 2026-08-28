@@ -86,7 +86,7 @@ def main() -> None:
     parser.add_argument("--microphone", type=int, help="Optional input-device number; omit for the Windows default.")
     parser.add_argument("--tts", choices=("piper", "windows"), default="piper", help="Speech engine; Piper is the natural local voice.")
     parser.add_argument("--piper-voice", type=Path, default=DEFAULT_PIPER_VOICE)
-    parser.add_argument("--voice", default="Microsoft Zira Desktop", help="Windows fallback voice name.")
+    parser.add_argument("--voice", default="auto", help="Windows fallback voice; auto prefers a natural installed voice.")
     parser.add_argument("--voice-rate", type=int, default=4, help="Voice energy from -10 to 10; 4 is upbeat.")
     parser.add_argument("--recognizer", choices=("auto", "windows", "vosk"), default="auto", help="Speech recognizer; auto uses Windows on a laptop and Vosk elsewhere.")
     parser.add_argument("--listen-seconds", type=float, default=12.0, help="Maximum wait for one spoken turn.")

@@ -189,7 +189,7 @@ def main() -> None:
     parser.add_argument("--recognizer", choices=("auto", "windows", "vosk"), default="vosk")
     parser.add_argument("--tts", choices=("piper", "windows"), default="piper")
     parser.add_argument("--piper-voice", type=Path, default=DEFAULT_PIPER_VOICE)
-    parser.add_argument("--voice", default="Microsoft Zira Desktop")
+    parser.add_argument("--voice", default="auto", help="Windows fallback voice name; auto prefers a natural voice.")
     parser.add_argument("--voice-rate", type=int, default=4, help="Voice energy from -10 to 10.")
     parser.add_argument("--listen-seconds", type=float, default=12.0)
     args = parser.parse_args()

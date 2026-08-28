@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import unittest
 
-from src.conversation import ConversationResult, OllamaConversationProvider, RuleConversationProvider, explicit_action_result
+from src.conversation import (
+    ConversationResult,
+    OllamaConversationProvider,
+    RuleConversationProvider,
+    explicit_action_result,
+    is_game_request,
+)
 from src.robot_state import Action, Reaction, RobotCommand
 
 
@@ -26,13 +32,24 @@ class ConversationTests(unittest.TestCase):
         self.assertEqual(result.command.reaction, Reaction.HAPPY)
 
     def test_game_command_is_deterministic_before_ollama(self) -> None:
-        for request in ("Can we play a guessing game?", "Let us play a game", "Can we play twenty questions?"):
+        for request in (
+            "Can we play a guessing game?",
+            "Let us play a game",
+            "Can we play twenty questions?",
+            "Can we play Alkinator?",
+            "Start a kinator",
+            "Can you guess what I'm thinking?",
+            "Let us try the object game",
+        ):
             with self.subTest(request=request):
                 result = explicit_action_result(request)
                 self.assertIsNotNone(result)
                 assert result is not None
                 self.assertEqual(result.command.action, Action.START_GAME)
                 self.assertIn("I will ask questions and try to guess it", result.command.reply)
+
+    def test_game_request_does_not_trigger_on_an_incidental_game_reference(self) -> None:
+        self.assertFalse(is_game_request("That game was interesting yesterday."))
 
     def test_explicit_conversation_phrases_choose_visible_reactions_offline(self) -> None:
         cases = {

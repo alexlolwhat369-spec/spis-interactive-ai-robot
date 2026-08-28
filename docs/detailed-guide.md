@@ -267,6 +267,11 @@ The game chooses questions by information gain and accepts `yes`, `probably`,
 extend the list **without retraining any model**. The current curated catalog has
 60 objects, and the algorithm has no hard object limit.
 
+Start it by saying `play Akinator`, `play Alkinator`, `start the object game`,
+`twenty questions`, or `guess what I am thinking`. If a spoken answer does not
+look like yes/no/maybe, the robot asks you to repeat it without consuming the
+question. Asking to play again starts a clean round.
+
 If the game misses a guess, the robot asks for the correct object. If that object
 is already in the catalog, it anonymously stores the round's answers in
 `data/game_trials.jsonl` to improve questions after review. If it is a new object,
@@ -358,8 +363,16 @@ python src/voice_demo.py --ollama-model llama3.2:1b
 Fallback to the classic Windows voice:
 
 ```bash
-python src/voice_demo.py --tts windows
+python src/voice_demo.py --tts windows --voice auto
 ```
+
+The `auto` option checks the installed voices and prefers names that indicate a
+natural or neural voice before falling back to Microsoft Zira. Piper and the
+Windows fallback both clean Markdown, links, code markers, and URLs before
+speaking so the robot does not read formatting symbols aloud. This lightweight
+selection adapts the TTS approach from the MIT-licensed
+[`tsaristov/business_suite`](https://github.com/tsaristov/business_suite); it
+does not copy a voice model or require that web application.
 
 List and pick a microphone / recognizer:
 

@@ -45,6 +45,32 @@ REACTION_STYLES = {
 QUESTION_STYLE = SpeechStyle(length_scale=0.97, noise_scale=0.84, noise_w_scale=0.98)
 EMPHATIC_STYLE = SpeechStyle(length_scale=0.78, noise_scale=0.96, noise_w_scale=1.06)
 
+WINDOWS_VOICE_HINTS = ("natural", "neural", "aria", "jenny", "google", "samantha", "zira")
+
+
+def clean_spoken_text(text: str) -> str:
+    """Turn display-oriented Markdown into a short sentence suitable for TTS."""
+    cleaned = re.sub(r"\[([^\]]+)\]\([^\)]+\)", r"\1", text)
+    cleaned = re.sub(r"```.*?```", " ", cleaned, flags=re.DOTALL)
+    cleaned = re.sub(r"[*_`#>]", "", cleaned)
+    cleaned = re.sub(r"https?://\S+", "", cleaned)
+    return " ".join(cleaned.split())
+
+
+def preferred_windows_voice(installed: list[str], requested: str = "auto") -> str | None:
+    """Select an installed voice using the natural-voice preference from the web reference."""
+    if not installed:
+        return None
+    if requested and requested.casefold() != "auto":
+        exact = next((name for name in installed if name.casefold() == requested.casefold()), None)
+        if exact:
+            return exact
+    for hint in WINDOWS_VOICE_HINTS:
+        match = next((name for name in installed if hint in name.casefold()), None)
+        if match:
+            return match
+    return installed[0]
+
 
 def plan_speech(text: str, reaction: str | None = None) -> list[SpeechSegment]:
     """Split a reply into audible phrases and give each a deliberate delivery style.
@@ -53,7 +79,7 @@ def plan_speech(text: str, reaction: str | None = None) -> list[SpeechSegment]:
     controls pace and natural variation, with punctuation marking an emphasis or
     a question. A future trained expressive voice can use this same segment plan.
     """
-    cleaned = " ".join(text.split())
+    cleaned = clean_spoken_text(text)
     if not cleaned:
         return []
     base_style = REACTION_STYLES.get((reaction or "").lower(), NEUTRAL_STYLE)
@@ -71,12 +97,15 @@ def plan_speech(text: str, reaction: str | None = None) -> list[SpeechSegment]:
 
 
 class LocalSpeaker:
-    def __init__(self, voice_name: str = "Microsoft Zira Desktop", voice_rate: int = 4) -> None:
+    def __init__(self, voice_name: str = "auto", voice_rate: int = 4) -> None:
         self.voice_name = voice_name
         self.voice_rate = max(-10, min(10, voice_rate))
 
     def speak(self, text: str, reaction: str | None = None) -> bool:
         """Speak locally without sending the visitor's words to a cloud service."""
+        text = clean_spoken_text(text)
+        if not text:
+            return True
         executable = shutil.which("espeak-ng") or shutil.which("espeak")
         if executable:
             words_per_minute = 175 + self.voice_rate * 9
@@ -91,7 +120,16 @@ class LocalSpeaker:
                 "$voice = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
                 f"$text = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{encoded}')); "
                 f"$voiceName = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{encoded_voice}')); "
-                "try { $voice.SelectVoice($voiceName) } catch {} ; "
+                "$names = @($voice.GetInstalledVoices() | ForEach-Object { $_.VoiceInfo.Name }); "
+                "$chosen = $null; "
+                "if ($voiceName -and $voiceName.ToLowerInvariant() -ne 'auto') { "
+                "$chosen = $names | Where-Object { $_.ToLowerInvariant() -eq $voiceName.ToLowerInvariant() } "
+                "| Select-Object -First 1 }; "
+                "if (-not $chosen) { foreach ($hint in @('natural','neural','aria','jenny','google','samantha','zira')) { "
+                "$chosen = $names | Where-Object { $_.ToLowerInvariant().Contains($hint) } | Select-Object -First 1; "
+                "if ($chosen) { break } } }; "
+                "if (-not $chosen -and $names.Count -gt 0) { $chosen = $names[0] }; "
+                "if ($chosen) { try { $voice.SelectVoice($chosen) } catch {} }; "
                 f"$voice.Rate = {self.voice_rate}; "
                 "$voice.Speak($text)"
             )

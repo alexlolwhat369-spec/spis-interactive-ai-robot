@@ -6,7 +6,7 @@ style object-guessing game and play music. Everything runs **on-device**: gestur
 recognition, speech-to-text, the language model (via Ollama), and text-to-speech
 all run locally, with no cloud API during the demo.
 
-> Privacy: the gesture model is trained on **hand-coordinate numbers only** — no
+> Privacy: the gesture model is trained on **hand-coordinate numbers only** - no
 > photos, no faces are ever stored. See [detailed guide](docs/detailed-guide.md#privacy).
 
 For the full explanation (architecture, training, the game, Raspberry Pi
@@ -38,7 +38,7 @@ python src/setup_assets.py
 ```
 
 > Only `opencv-contrib-python` should be installed. Do **not** also install
-> `opencv-python` — both provide the `cv2` module and will clash.
+> `opencv-python` - both provide the `cv2` module and will clash.
 
 ## Quick start
 
@@ -69,7 +69,8 @@ python src/interactive_robot.py --ollama-model spis-robot --recognizer vosk --mi
   speak, release to let the robot process the sentence.
 - **Face states:** idle, listening, thinking, speaking, happy, proud, confused,
   heart, annoyed, curious.
-- **The game:** ask the robot to play — it guesses an object with yes/no questions.
+- **The game:** say `play Akinator`, `play Alkinator`, `twenty questions`, or ask
+  it to guess your object. It always tries to guess the object you are thinking of.
 - **Music:** ask for music (drop your own tracks in `assets/music/`).
 
 ## How to stop

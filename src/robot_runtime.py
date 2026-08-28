@@ -7,13 +7,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 try:
-    from .conversation import ConversationProvider, ConversationResult
+    from .conversation import ConversationProvider, ConversationResult, is_game_request
     from .game_trials import record_trial
     from .object_game import ObjectGuessingGame
     from .object_learning import record_suggestion
     from .robot_state import Action, Reaction, RobotCommand
 except ImportError:  # Supports direct execution: python src/chat_console.py
-    from conversation import ConversationProvider, ConversationResult
+    from conversation import ConversationProvider, ConversationResult, is_game_request
     from game_trials import record_trial
     from object_game import ObjectGuessingGame
     from object_learning import record_suggestion
@@ -23,10 +23,21 @@ except ImportError:  # Supports direct execution: python src/chat_console.py
 GAME_INTRODUCTION = "Think of one object. I will ask questions and try to guess your object."
 
 
-def answer_from_text(text: str) -> str:
+def answer_from_text(text: str) -> str | None:
     """Convert a short visitor response into an answer the object game understands."""
     normalized = re.sub(r"[^a-z0-9' ]+", " ", text.lower()).strip()
-    if _starts_with(normalized, "no idea", "not sure", "i do not know", "i don't know"):
+    if _starts_with(
+        normalized,
+        "maybe",
+        "no idea",
+        "not sure",
+        "i am not sure",
+        "i'm not sure",
+        "i do not know",
+        "i don't know",
+        "unsure",
+        "could be",
+    ):
         return "maybe"
     if _starts_with(
         normalized,
@@ -60,7 +71,7 @@ def answer_from_text(text: str) -> str:
         return "no"
     if _starts_with(normalized, "i guess"):
         return "maybe"
-    return "maybe"
+    return None
 
 
 def _starts_with(text: str, *phrases: str) -> bool:
@@ -109,7 +120,11 @@ class RobotDialogueSession:
         if self.game_active:
             return self._answer_game(message)
 
-        result = self.provider.respond(message)
+        result = (
+            ConversationResult(RobotCommand(GAME_INTRODUCTION, Reaction.PROUD, Action.START_GAME))
+            if is_game_request(message)
+            else self.provider.respond(message)
+        )
         if result.command.action != Action.START_GAME:
             return SessionResult(result, False)
 
@@ -120,12 +135,18 @@ class RobotDialogueSession:
         return self._ask_next_question(introduction=GAME_INTRODUCTION)
 
     def _answer_game(self, message: str) -> SessionResult:
-        if message.lower().strip() in {"stop", "quit", "exit", "cancel"}:
+        normalized = re.sub(r"[^a-z0-9' ]+", " ", message.lower()).strip()
+        if _starts_with(normalized, "stop", "quit", "exit", "cancel", "end the game"):
             self._clear_game()
             return SessionResult(
                 ConversationResult(RobotCommand("Okay, we can play another time.", Reaction.IDLE, Action.STOP)),
                 False,
             )
+
+        if is_game_request(message):
+            self._clear_game()
+            self.game = ObjectGuessingGame.from_file(self.object_catalog, self.calibration_path)
+            return self._ask_next_question(introduction="Starting a new round. " + GAME_INTRODUCTION)
 
         if self.pending_guess is not None:
             return self._confirm_guess(message)
@@ -135,6 +156,17 @@ class RobotDialogueSession:
         if self.pending_attribute is None:
             return self._ask_next_question()
         answer = answer_from_text(message)
+        if answer is None:
+            return SessionResult(
+                ConversationResult(
+                    RobotCommand(
+                        "I did not catch a game answer. Please say yes, probably, maybe, probably not, or no.",
+                        Reaction.CONFUSED,
+                        Action.START_GAME,
+                    )
+                ),
+                True,
+            )
         self.game_turns.append(
             {
                 "question_id": self.pending_attribute,
