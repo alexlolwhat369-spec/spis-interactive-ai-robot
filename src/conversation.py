@@ -10,8 +10,10 @@ from dataclasses import dataclass
 from typing import Protocol
 
 try:
+    from .conversation_emotion import explicit_conversation_reaction
     from .robot_state import Action, Reaction, RobotCommand
 except ImportError:  # Supports direct execution: python src/chat_console.py
+    from conversation_emotion import explicit_conversation_reaction
     from robot_state import Action, Reaction, RobotCommand
 
 ROBOT_RESPONSE_SCHEMA = {
@@ -29,10 +31,13 @@ SYSTEM_PROMPT = """You are SPIS Robot, a friendly, upbeat English-speaking scien
 Reply in one or two short sentences. Return only JSON matching the supplied schema.
 Use reactions based only on what the visitor explicitly says or does. Never infer identity,
 race, ethnicity, nationality, religion, or taste from a face. Use start_game only when the
-visitor asks to play the object guessing game. Use play_music only when they ask for music
-or explicitly name a mood. Use happy for greetings or introductions, proud for a correct
-game guess, listening only while asking the visitor a question, and speaking for ordinary
-answers. If unsure, use reaction confused and action none."""
+visitor asks to play the object guessing game. In that game, the visitor thinks of one
+object, you ask questions, and you try to guess the visitor's object. Never ask the visitor
+to guess an object you are thinking of. Use play_music only when they ask for music or
+explicitly name a mood. Use happy for compliments, proud for a correct game guess, annoyed
+for direct insults while replying calmly, curious for explicit interest or surprise, listening
+only while asking a visitor a question, and speaking for ordinary answers. If unsure, use
+reaction confused and action none."""
 
 
 @dataclass(frozen=True)
@@ -49,9 +54,9 @@ class ConversationProvider(Protocol):
 def explicit_action_result(message: str) -> ConversationResult | None:
     """Handle reliable robot commands locally before an LLM can reinterpret them."""
     text = message.lower().strip()
-    if any(phrase in text for phrase in ("guessing game", "akinator", "guess an object", "play a game")):
+    if re.search(r"\b(guessing game|akinator|guess an object|play (a |the )?game|twenty questions|20 questions)\b", text):
         return ConversationResult(
-            RobotCommand("Great! Think of an object and answer my questions.", Reaction.PROUD, Action.START_GAME)
+            RobotCommand("Think of one object. I will ask questions and try to guess it.", Reaction.PROUD, Action.START_GAME)
         )
     if any(word in text for word in ("play music", "some music", "song", "music")):
         category = "energetic" if any(word in text for word in ("energy", "energetic", "dance")) else "calm"
@@ -71,6 +76,15 @@ class RuleConversationProvider:
         explicit = explicit_action_result(message)
         if explicit is not None:
             return explicit
+        emotion = explicit_conversation_reaction(message)
+        if emotion == Reaction.ANNOYED:
+            return ConversationResult(RobotCommand("Let's keep our conversation kind, please.", emotion))
+        if emotion == Reaction.CURIOUS:
+            return ConversationResult(RobotCommand("That is interesting. Tell me more!", emotion))
+        if emotion == Reaction.HAPPY:
+            return ConversationResult(RobotCommand("Thank you! That makes me happy.", emotion))
+        if emotion == Reaction.CONFUSED:
+            return ConversationResult(RobotCommand("I am not sure I understood. Could you say that another way?", emotion))
         if re.search(r"\b(hello|hi|hey)\b", text):
             return ConversationResult(RobotCommand("Hello! Nice to meet you.", Reaction.HAPPY))
         if "joke" in text:
@@ -136,6 +150,13 @@ class OllamaConversationProvider:
     @staticmethod
     def _apply_explicit_reaction_rules(message: str, result: ConversationResult) -> ConversationResult:
         """Keep simple visitor-facing reactions stable even with a small local model."""
+        emotion = explicit_conversation_reaction(message)
+        if emotion is not None and result.command.action == Action.NONE:
+            return ConversationResult(
+                RobotCommand(result.command.reply, emotion, result.command.action),
+                result.music_category,
+                result.provider_error,
+            )
         greeting = re.search(r"\b(hello|hi|hey)\b", message.lower())
         if greeting and result.command.action == Action.NONE:
             return ConversationResult(

@@ -15,6 +15,8 @@ class Reaction(StrEnum):
     PROUD = "proud"
     CONFUSED = "confused"
     HEART = "heart"
+    ANNOYED = "annoyed"
+    CURIOUS = "curious"
 
 
 class Action(StrEnum):
@@ -66,4 +68,3 @@ class RobotController:
     def finish_speaking(self) -> RobotCommand:
         self.reaction = Reaction.IDLE
         return RobotCommand("", self.reaction)
-

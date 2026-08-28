@@ -17,6 +17,8 @@ except ImportError:  # Supports direct execution: python src/live_demo.py
 SCREEN = (18, 10, 3)
 CYAN = (255, 232, 90)
 CYAN_DIM = (110, 74, 20)
+STAR = (80, 230, 255)
+CORAL = (75, 85, 255)
 SUBTITLE = (240, 244, 242)
 
 
@@ -45,6 +47,15 @@ def _arc(marks: np.ndarray, center: tuple[int, int], radius: tuple[int, int], st
 
 def _line(marks: np.ndarray, start: tuple[int, int], end: tuple[int, int], thickness: int = 8) -> None:
     cv2.line(marks, start, end, CYAN, thickness, cv2.LINE_AA)
+
+
+def _star(marks: np.ndarray, center: tuple[int, int], outer_radius: int) -> None:
+    points = []
+    for index in range(10):
+        angle = -math.pi / 2 + index * math.pi / 5
+        radius = outer_radius if index % 2 == 0 else outer_radius * 0.43
+        points.append((int(center[0] + math.cos(angle) * radius), int(center[1] + math.sin(angle) * radius)))
+    cv2.fillPoly(marks, [np.array(points, dtype=np.int32)], STAR, cv2.LINE_AA)
 
 
 def _heart_outline(marks: np.ndarray, center: tuple[int, int], scale: float) -> None:
@@ -117,6 +128,17 @@ def _eyes_for(reaction: Reaction, marks: np.ndarray, cx: int, cy: int, phase: fl
         _round_eye(marks, (left[0], left[1] - 9), (20, 16), -15)
         _arc(marks, (right[0], right[1] + 6), (31, 17), 18, 160, 8)
         _arc(marks, (cx, cy + 55), (40, 23), 200, 340, 7)
+        return
+    if reaction == Reaction.ANNOYED:
+        cv2.line(marks, (left[0] - 34, left[1] - 17), (left[0] + 30, left[1] + 7), CORAL, 9, cv2.LINE_AA)
+        cv2.line(marks, (right[0] - 30, right[1] + 7), (right[0] + 34, right[1] - 17), CORAL, 9, cv2.LINE_AA)
+        cv2.ellipse(marks, (cx, cy + 60), (46, 25), 0, 200, 340, CORAL, 8, cv2.LINE_AA)
+        return
+    if reaction == Reaction.CURIOUS:
+        size = 22 + int((math.sin(phase * 4.0) + 1.0) * 2)
+        _star(marks, left, size)
+        _star(marks, right, size)
+        _arc(marks, (cx, cy + 49), (55, 28), 18, 162, 7)
         return
     if reaction == Reaction.HEART:
         _heart_outline(marks, (cx, cy + 5), 0.88 + 0.06 * math.sin(phase * 4.5))

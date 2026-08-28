@@ -26,7 +26,28 @@ class ConversationTests(unittest.TestCase):
         self.assertEqual(result.command.reaction, Reaction.HAPPY)
 
     def test_game_command_is_deterministic_before_ollama(self) -> None:
-        result = explicit_action_result("Can we play a guessing game?")
-        self.assertIsNotNone(result)
-        assert result is not None
-        self.assertEqual(result.command.action, Action.START_GAME)
+        for request in ("Can we play a guessing game?", "Let us play a game", "Can we play twenty questions?"):
+            with self.subTest(request=request):
+                result = explicit_action_result(request)
+                self.assertIsNotNone(result)
+                assert result is not None
+                self.assertEqual(result.command.action, Action.START_GAME)
+                self.assertIn("I will ask questions and try to guess it", result.command.reply)
+
+    def test_explicit_conversation_phrases_choose_visible_reactions_offline(self) -> None:
+        cases = {
+            "You are so cute": Reaction.HAPPY,
+            "You are stupid": Reaction.ANNOYED,
+            "I do not understand": Reaction.CONFUSED,
+            "That is interesting": Reaction.CURIOUS,
+        }
+
+        for phrase, expected in cases.items():
+            with self.subTest(phrase=phrase):
+                self.assertEqual(self.provider.respond(phrase).command.reaction, expected)
+
+    def test_explicit_interest_overrides_an_ordinary_ollama_reaction(self) -> None:
+        original = ConversationResult(command=RobotCommand("A reply.", Reaction.SPEAKING))
+        result = OllamaConversationProvider._apply_explicit_reaction_rules("Wow, interesting!", original)
+
+        self.assertEqual(result.command.reaction, Reaction.CURIOUS)

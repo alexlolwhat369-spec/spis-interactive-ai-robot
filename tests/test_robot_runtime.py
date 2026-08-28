@@ -5,10 +5,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from src.conversation import RuleConversationProvider
+from src.conversation import ConversationResult, RuleConversationProvider
 from src.object_game import ObjectGuessingGame, ObjectProfile, default_likelihoods
 from src.robot_runtime import RobotDialogueSession, answer_from_text
-from src.robot_state import Action, Reaction
+from src.robot_state import Action, Reaction, RobotCommand
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,6 +32,21 @@ class RobotRuntimeTests(unittest.TestCase):
         self.assertEqual(result.conversation.command.action, Action.START_GAME)
         self.assertEqual(result.conversation.command.reaction, Reaction.LISTENING)
         self.assertIn("yes, probably, maybe, probably not, or no", result.conversation.command.reply)
+
+    def test_game_always_keeps_the_robot_as_the_guesser(self) -> None:
+        class RoleReversingProvider:
+            def respond(self, message: str) -> ConversationResult:
+                return ConversationResult(
+                    RobotCommand("Try to guess the object I am thinking of.", Reaction.SPEAKING, Action.START_GAME)
+                )
+
+        session = RobotDialogueSession(
+            RoleReversingProvider(), ROOT / "data" / "object_catalog.json", trial_log_path=self.trial_log
+        )
+        result = session.respond("Start a game")
+
+        self.assertIn("I will ask questions and try to guess your object", result.conversation.command.reply)
+        self.assertNotIn("guess the object I am thinking", result.conversation.command.reply)
 
     def test_game_can_be_cancelled(self) -> None:
         self.session.respond("Play a game")

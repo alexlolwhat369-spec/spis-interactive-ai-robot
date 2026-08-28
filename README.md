@@ -175,10 +175,13 @@ el microfono y la transcripcion se conectaran despues de validar el dispositivo.
 python src/chat_console.py --speak
 ```
 
-El modo local entiende saludos, bromas, una peticion de musica, el juego de
-objetos y detenerse. El juego de objetos elige preguntas por ganancia de
-informacion y acepta `yes`, `probably`, `maybe`, `probably not` y `no`. Para
-usar un modelo ya descargado por Ollama, ejecuta:
+El modo local entiende saludos, bromas, elogios, insultos suaves, confusion,
+interes, una peticion de musica, el juego de objetos y detenerse. Reacciona con
+una cara feliz ante elogios, una cara molesta pero amable ante insultos, una
+cara confundida cuando no entiende y estrellas en los ojos ante interes claro.
+El juego de objetos elige preguntas por ganancia de informacion y acepta `yes`,
+`probably`, `maybe`, `probably not` y `no`. Para usar un modelo ya descargado
+por Ollama, ejecuta:
 
 ```bash
 python src/chat_console.py --ollama-model NOMBRE_DEL_MODELO

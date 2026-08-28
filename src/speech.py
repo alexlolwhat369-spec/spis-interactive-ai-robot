@@ -34,6 +34,8 @@ REACTION_STYLES = {
     "happy": SpeechStyle(length_scale=0.85, noise_scale=0.86, noise_w_scale=0.96),
     "proud": SpeechStyle(length_scale=0.80, noise_scale=0.92, noise_w_scale=1.02),
     "heart": SpeechStyle(length_scale=0.98, noise_scale=0.74, noise_w_scale=0.84),
+    "annoyed": SpeechStyle(length_scale=0.94, noise_scale=0.70, noise_w_scale=0.80),
+    "curious": SpeechStyle(length_scale=0.88, noise_scale=0.86, noise_w_scale=1.00),
     "confused": SpeechStyle(length_scale=1.00, noise_scale=0.72, noise_w_scale=0.82),
     "listening": SpeechStyle(length_scale=0.98, noise_scale=0.76, noise_w_scale=0.86),
     "thinking": SpeechStyle(length_scale=0.96, noise_scale=0.76, noise_w_scale=0.88),

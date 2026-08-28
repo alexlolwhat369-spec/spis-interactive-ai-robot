@@ -20,6 +20,9 @@ except ImportError:  # Supports direct execution: python src/chat_console.py
     from robot_state import Action, Reaction, RobotCommand
 
 
+GAME_INTRODUCTION = "Think of one object. I will ask questions and try to guess your object."
+
+
 def answer_from_text(text: str) -> str:
     """Convert a short visitor response into an answer the object game understands."""
     normalized = re.sub(r"[^a-z0-9' ]+", " ", text.lower()).strip()
@@ -112,7 +115,9 @@ class RobotDialogueSession:
 
         self.game = ObjectGuessingGame.from_file(self.object_catalog, self.calibration_path)
         self.game_turns = []
-        return self._ask_next_question(introduction=result.command.reply)
+        # The LLM may choose the start action, but it never controls the game's
+        # role assignment or opening wording.
+        return self._ask_next_question(introduction=GAME_INTRODUCTION)
 
     def _answer_game(self, message: str) -> SessionResult:
         if message.lower().strip() in {"stop", "quit", "exit", "cancel"}:

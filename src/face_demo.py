@@ -25,6 +25,8 @@ SUBTITLES = {
     Reaction.PROUD: "Nice work!",
     Reaction.CONFUSED: "Could you say that again?",
     Reaction.HEART: "Thank you!",
+    Reaction.ANNOYED: "Let's keep it kind, please.",
+    Reaction.CURIOUS: "That is interesting!",
 }
 
 
