@@ -21,6 +21,8 @@ class HaGRIDImportTests(unittest.TestCase):
             "like-1": {"labels": ["like"], "hand_landmarks": [hand(0.1)], "meta": {"race": ["ignored"]}},
             "like-2": {"labels": ["like"], "hand_landmarks": [hand(0.2)]},
             "peace": {"labels": ["peace"], "hand_landmarks": [hand(0.3)]},
+            "ok": {"labels": ["ok"], "hand_landmarks": [hand(0.4)]},
+            "middle": {"labels": ["middle_finger"], "hand_landmarks": [hand(0.5)]},
             "heart": {"united_label": ["hand_heart"], "hand_landmarks": [hand(0.2), hand(0.7)]},
         }
         with tempfile.TemporaryDirectory() as directory:
@@ -34,8 +36,10 @@ class HaGRIDImportTests(unittest.TestCase):
         self.assertEqual(counts["thumbs_up"], 1)
         self.assertEqual(counts["peace"], 1)
         self.assertEqual(counts["heart"], 1)
-        self.assertEqual(features.shape, (3, 126))
-        self.assertEqual(sorted(labels.tolist()), ["heart", "peace", "thumbs_up"])
+        self.assertEqual(counts["ok"], 1)
+        self.assertEqual(counts["middle_finger"], 1)
+        self.assertEqual(features.shape, (5, 126))
+        self.assertEqual(sorted(labels.tolist()), ["heart", "middle_finger", "ok", "peace", "thumbs_up"])
 
     def test_rejects_zero_sample_limit(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

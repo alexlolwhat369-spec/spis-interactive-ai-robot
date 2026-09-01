@@ -11,12 +11,12 @@ import cv2
 try:
     from .capture_quality import CaptureGate
     from .data_io import append_sample
-    from .gesture_features import HandSample, landmarks_to_features, required_hands
+    from .gesture_features import POSE_HINTS, TRAINING_LABELS, landmarks_to_features, required_hands
     from .hand_tracker import HandTracker, draw_hands
 except ImportError:  # Supports direct execution: python src/collect_samples.py
     from capture_quality import CaptureGate
     from data_io import append_sample
-    from gesture_features import HandSample, landmarks_to_features, required_hands
+    from gesture_features import POSE_HINTS, TRAINING_LABELS, landmarks_to_features, required_hands
     from hand_tracker import HandTracker, draw_hands
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,7 +26,7 @@ HAND_MODEL_PATH = ROOT / "models" / "hand_landmarker.task"
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Capture numeric hand-landmark samples.")
-    parser.add_argument("--label", required=True, choices=["wave", "thumbs_up", "peace", "stop", "heart"])
+    parser.add_argument("--label", required=True, choices=TRAINING_LABELS)
     parser.add_argument("--samples", type=int, default=180)
     parser.add_argument("--camera", type=int, default=0)
     parser.add_argument("--auto", action="store_true", help="Capture varied samples automatically.")
@@ -65,6 +65,7 @@ def main() -> None:
             cv2.putText(frame, message, (20, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.65, color, 2)
             cv2.putText(frame, f"Show {needed} hand(s)", (20, 66), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
             cv2.putText(frame, capture_status, (20, 96), cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
+            cv2.putText(frame, POSE_HINTS[args.label], (20, 126), cv2.FONT_HERSHEY_SIMPLEX, 0.52, color, 2)
             cv2.imshow("Gesture sample capture", frame)
 
             key = cv2.waitKey(1) & 0xFF

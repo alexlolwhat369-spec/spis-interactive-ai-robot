@@ -12,6 +12,28 @@ COORDINATES_PER_LANDMARK = 3
 MAX_HANDS = 2
 FEATURE_SIZE = LANDMARKS_PER_HAND * COORDINATES_PER_LANDMARK * MAX_HANDS
 
+TRAINING_LABELS = (
+    "wave",
+    "thumbs_up",
+    "peace",
+    "stop",
+    "heart",
+    "middle_finger",
+    "ok",
+    "mohan",
+)
+
+POSE_HINTS = {
+    "wave": "Open hand, fingers apart",
+    "thumbs_up": "Thumb up, other fingers folded",
+    "peace": "Index and middle fingers raised",
+    "stop": "Open palm facing the camera",
+    "heart": "Make one heart with both hands",
+    "middle_finger": "Only the middle finger raised",
+    "ok": "Touch thumb and index; other fingers raised",
+    "mohan": "Two hands: make an M with two peace signs",
+}
+
 
 @dataclass(frozen=True)
 class HandSample:
@@ -73,5 +95,4 @@ def landmarks_to_features(hands: Sequence[HandSample]) -> np.ndarray:
 
 def required_hands(label: str) -> int:
     """Return the required number of visible hands for a training label."""
-    return 2 if label == "heart" else 1
-
+    return 2 if label in {"heart", "mohan"} else 1

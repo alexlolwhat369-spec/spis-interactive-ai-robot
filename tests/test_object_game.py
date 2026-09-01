@@ -144,6 +144,18 @@ class ObjectGameTests(unittest.TestCase):
         second, _ = game.next_question()
         self.assertIn(second, {"screen", "camera"})
 
+    def test_dominant_technology_branch_excludes_other_category_details(self) -> None:
+        game = ObjectGuessingGame.from_file(ROOT / "data" / "object_catalog.json")
+        first, _ = game.next_question()
+        self.assertEqual(first, "electronic")
+        game.answer(first, "yes")
+
+        self.assertEqual(game.focused_category(), "technology")
+        for _ in range(6):
+            key, _ = game.next_question()
+            self.assertIn(game.questions[key].category, {"technology", "general"}, key)
+            game.answer(key, "maybe")
+
     def test_category_probe_no_moves_to_another_category_probe(self) -> None:
         game = ObjectGuessingGame(
             [
@@ -205,6 +217,20 @@ class ObjectGameTests(unittest.TestCase):
         signatures = [item.attributes for item in game.objects]
 
         self.assertEqual(len(signatures), len(set(signatures)))
+
+    def test_exact_answer_to_unique_attribute_becomes_decisive(self) -> None:
+        game = ObjectGuessingGame.from_file(ROOT / "data" / "object_catalog.json")
+
+        game.answer("computer_pointer", "yes")
+
+        self.assertEqual(game.decisive_guess(), "mouse")
+
+    def test_uncertain_answer_to_unique_attribute_is_not_decisive(self) -> None:
+        game = ObjectGuessingGame.from_file(ROOT / "data" / "object_catalog.json")
+
+        game.answer("computer_pointer", "probably")
+
+        self.assertIsNone(game.decisive_guess())
 
     def test_catalog_semantics_cover_time_voice_and_soft_materials(self) -> None:
         game = ObjectGuessingGame.from_file(ROOT / "data" / "object_catalog.json")

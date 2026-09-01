@@ -16,3 +16,13 @@ class RobotStateTests(unittest.TestCase):
         self.assertEqual(command.reaction, Reaction.LISTENING)
         self.assertEqual(command.action, Action.STOP)
 
+    def test_new_gestures_have_explicit_reactions(self) -> None:
+        controller = RobotController()
+        self.assertEqual(controller.from_gesture("middle_finger").reaction, Reaction.ANNOYED)
+        self.assertEqual(controller.from_gesture("ok").reaction, Reaction.OK)
+        self.assertNotEqual(controller.from_gesture("ok").reaction, Reaction.PROUD)
+        self.assertEqual(controller.from_gesture("mohan").reaction, Reaction.MOHAN)
+
+    def test_unrecognized_gesture_cannot_show_mohan(self) -> None:
+        command = RobotController().from_gesture("not_a_real_label")
+        self.assertEqual(command.reaction, Reaction.CONFUSED)

@@ -27,6 +27,8 @@ SUBTITLES = {
     Reaction.HEART: "Thank you!",
     Reaction.ANNOYED: "Let's keep it kind, please.",
     Reaction.CURIOUS: "That is interesting!",
+    Reaction.OK: "Perfect!",
+    Reaction.MOHAN: "Mohan!",
 }
 
 

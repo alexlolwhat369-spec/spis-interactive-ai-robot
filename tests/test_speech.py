@@ -4,6 +4,7 @@ import unittest
 
 from src.speech import (
     EMPHATIC_STYLE,
+    FallbackSpeaker,
     NEUTRAL_STYLE,
     QUESTION_STYLE,
     clean_spoken_text,
@@ -44,3 +45,23 @@ class SpeechPlanTests(unittest.TestCase):
 
         self.assertEqual(preferred_windows_voice(installed), "Microsoft Aria Natural")
         self.assertEqual(preferred_windows_voice(installed, "Microsoft Zira Desktop"), "Microsoft Zira Desktop")
+
+    def test_tts_falls_back_when_primary_voice_raises_an_error(self) -> None:
+        class BrokenSpeaker:
+            def speak(self, text: str, reaction: str | None = None) -> bool:
+                raise RuntimeError("audio device unavailable")
+
+        class WorkingSpeaker:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def speak(self, text: str, reaction: str | None = None) -> bool:
+                self.calls += 1
+                return True
+
+        fallback = WorkingSpeaker()
+        speaker = FallbackSpeaker(BrokenSpeaker(), fallback)
+
+        self.assertTrue(speaker.speak("Hello", "happy"))
+        self.assertEqual(fallback.calls, 1)
+        self.assertIn("audio device unavailable", speaker.last_error or "")

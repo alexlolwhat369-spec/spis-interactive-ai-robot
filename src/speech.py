@@ -36,6 +36,7 @@ REACTION_STYLES = {
     "heart": SpeechStyle(length_scale=0.98, noise_scale=0.74, noise_w_scale=0.84),
     "annoyed": SpeechStyle(length_scale=0.94, noise_scale=0.70, noise_w_scale=0.80),
     "curious": SpeechStyle(length_scale=0.88, noise_scale=0.86, noise_w_scale=1.00),
+    "ok": SpeechStyle(length_scale=0.84, noise_scale=0.84, noise_w_scale=0.94),
     "confused": SpeechStyle(length_scale=1.00, noise_scale=0.72, noise_w_scale=0.82),
     "listening": SpeechStyle(length_scale=0.98, noise_scale=0.76, noise_w_scale=0.86),
     "thinking": SpeechStyle(length_scale=0.96, noise_scale=0.76, noise_w_scale=0.88),
@@ -140,6 +141,24 @@ class LocalSpeaker:
                 stderr=subprocess.DEVNULL,
             )
             return completed.returncode == 0
+        return False
+
+
+class FallbackSpeaker:
+    """Try the neural voice first and keep subtitles usable if audio fails."""
+
+    def __init__(self, primary: object, fallback: object) -> None:
+        self.primary = primary
+        self.fallback = fallback
+        self.last_error: str | None = None
+
+    def speak(self, text: str, reaction: str | None = None) -> bool:
+        for speaker in (self.primary, self.fallback):
+            try:
+                if speaker.speak(text, reaction):
+                    return True
+            except Exception as error:
+                self.last_error = str(error)
         return False
 
 

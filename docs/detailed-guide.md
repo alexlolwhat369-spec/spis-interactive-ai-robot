@@ -2,7 +2,7 @@
 
 This is the in-depth companion to the [README](../README.md). It covers the
 architecture, the data and training pipeline, the conversation brain, the
-object-guessing game, the voice stack, privacy, and Raspberry Pi deployment.
+object-guessing game, the voice stack, privacy, and laptop operation.
 
 - [Overview](#overview)
 - [Architecture](#architecture)
@@ -22,22 +22,24 @@ object-guessing game, the voice stack, privacy, and Raspberry Pi deployment.
   - [Reviewing learned suggestions](#reviewing-learned-suggestions)
 - [Voice conversation](#voice-conversation)
 - [The full interactive robot](#the-full-interactive-robot)
-- [Deploying to Raspberry Pi](#deploying-to-raspberry-pi)
+- [Laptop deployment](#laptop-deployment)
 - [Testing](#testing)
 
 ---
 
 ## Overview
 
-The robot recognizes five hand gestures with a camera and triggers a reaction.
+The deployed model recognizes seven hand gestures with a camera and triggers a reaction.
 The gesture model is trained on **hand coordinates**, not photos or facial
 features. Trainable gestures:
 
-- `wave`
 - `thumbs_up`
 - `peace`
 - `stop`
 - `heart` (two hands)
+- `middle_finger`
+- `ok`
+- `mohan` (two peace-shaped hands joined to form an M)
 
 The `none` state means no hand is detected. If a hand does not look close enough
 to the training examples, the system shows `unknown` instead of guessing.
@@ -60,10 +62,9 @@ Camera ─► MediaPipe Hands ─► gesture gate ─┐
 Microphone ─► Vosk/Windows STT ─► Ollama ──┘                 └─► Piper/Windows TTS
 ```
 
-Training can be done on a laptop. Then these files are copied to the Raspberry
-Pi 5: `src/`, `requirements.txt`, `models/hand_landmarker.task`, and
-`model/gesture_knn.npz`. The Pi runs only `src/live_demo.py` (or the full
-`interactive_robot.py`); it does not need the original samples.
+Training and the full demonstration both run on the laptop. The live robot loads
+`models/hand_landmarker.task` and `model/gesture_knn.npz`; it does not need the
+original capture samples during a demonstration.
 
 ## Module map
 
@@ -103,7 +104,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-Raspberry Pi OS / Linux / macOS:
+Linux / macOS:
 
 ```bash
 python3 -m venv .venv
@@ -132,7 +133,7 @@ Detection runs on the device.
 However, the current version of MediaPipe declares that it may send performance
 and usage metrics; during local testing a connection attempt for that telemetry
 was observed. For a fair without explicit visitor consent, download the
-dependencies and the model beforehand and run the Raspberry Pi **offline** during
+dependencies and the model beforehand and run the laptop **offline** during
 the demo.
 
 ## Gesture pipeline
@@ -143,12 +144,20 @@ Repeat capture for each gesture. Use good lighting and vary the angle and
 distance of the hand a little. `heart` needs both hands fully visible.
 
 ```bash
-python src/collect_samples.py --label wave --samples 180
 python src/collect_samples.py --label thumbs_up --samples 180
 python src/collect_samples.py --label peace --samples 180
 python src/collect_samples.py --label stop --samples 180
 python src/collect_samples.py --label heart --samples 220
+python src/collect_samples.py --label middle_finger --samples 180 --auto
+python src/collect_samples.py --label ok --samples 180 --auto
+python src/collect_samples.py --label mohan --samples 220 --auto
 ```
+
+For `mohan`, show both hands with the index and middle fingers extended. Touch
+the two inner fingertips to form the center of the M, as in the reference pose,
+and vary distance, wrist rotation, and height without changing that geometry.
+It gets 220 samples because it can be confused with two separate peace signs.
+For `middle_finger`, collect only with volunteers who agree to perform the gesture.
 
 In the camera window press **`C`** to save a sample and **`Q`** to quit. No frames
 are stored — `data/landmarks.csv` holds only the hand-point numbers.
@@ -172,8 +181,9 @@ capture flow).
 Do **not** download HaGRID images — each image class can take tens of GB. If you
 already have the official HaGRID **annotations** in a folder, this importer
 extracts up to 200 hand vectors for each of: `like -> thumbs_up`, `peace`,
-`stop`, `hand_heart -> heart`. It stores no images, user IDs, or personal
-metadata.
+`stop`, `hand_heart -> heart`, `middle_finger`, and `ok`. The custom `mohan`
+pose still needs your own camera samples. It stores no images, user IDs, or
+personal metadata.
 
 ```bash
 python src/import_hagrid.py --annotations-dir PATH_TO_ANNOTATIONS --max-per-class 200
@@ -182,8 +192,7 @@ python src/train.py --dataset data/hagrid_landmarks.csv
 
 The result is written to `data/hagrid_landmarks.csv`; keep it separate from
 `data/landmarks.csv`, which holds your voluntary captures. For the final demo,
-also use samples from your own camera, especially for `wave` — a motion gesture
-with no equivalent class in HaGRID.
+also use samples from the same laptop camera and environment used for the event.
 
 ### Training and evaluation
 
@@ -195,14 +204,14 @@ Flags: `--dataset` (default `data/landmarks.csv`), `--model`
 (default `model/gesture_knn.npz`), `--test-fraction` (0.2), `--seed` (42),
 `--k` (5). It creates:
 
-- `model/gesture_knn.npz` — the model for the demo and the Raspberry Pi.
+- `model/gesture_knn.npz` — the model used by the laptop demo.
 - `reports/evaluation.json` — accuracy and per-gesture metrics.
 - `reports/confusion_matrix.csv` — the confusion matrix.
 
 Do not present a single accuracy number. Also show the confusion matrix, how many
-samples exist per class, and error examples. The last local evaluation used 969
-samples: **97.4%** accuracy over 194 held-out samples. The demo gate keeps 181 of
-those correct samples and rejects poses that are not close enough.
+samples exist per class, and error examples. The current local evaluation uses
+1,550 samples and reports **93.87%** accuracy over 310 held-out samples. `stop`
+has the lowest recall at 83.9%, so it remains the first gesture to improve.
 
 ### The live demo gate
 
@@ -210,16 +219,19 @@ those correct samples and rejects poses that are not close enough.
 python src/live_demo.py                 # --camera 0, --model model/gesture_knn.npz
 ```
 
-`heart` draws a blue heart and fires the `heart` reaction. The animated face
+`heart` draws a blue heart and fires the `heart` reaction. `middle_finger`
+shows the annoyed face, `ok` shows the proud face, and `mohan` shows the supplied
+Mohan portrait and name. The animated face
 opens a second **800×480** window, suitable for a small HDMI screen. Voice is
 enabled only if the system has `espeak-ng`/`espeak`; the mic + speech recognition
 integration is validated with the hardware. Press **`Q`** to quit.
 
 ## Faces and reactions
 
-The robot has ten reactions (`robot_state.py`):
+The robot has eleven reactions (`robot_state.py`):
 `idle`, `listening`, `thinking`, `speaking`, `happy`, `proud`, `confused`,
-`heart`, `annoyed`, `curious`, plus actions `start_game`, `stop`, `play_music`.
+`heart`, `annoyed`, `curious`, `mohan`, plus actions `start_game`, `stop`,
+`play_music`.
 
 Preview every reaction without a webcam:
 
@@ -238,10 +250,9 @@ Test the robot's brain without a microphone or Ollama:
 python src/chat_console.py
 ```
 
-Add `--speak` to have the robot read its replies with the machine's local voice
-(Windows uses the built-in synthesizer; Raspberry Pi uses `espeak-ng` when
-installed). This test still takes typed text; the mic and transcription are
-connected after the device is validated.
+Add `--speak` to have the robot read its replies with the machine's local voice.
+Windows uses Piper first and the built-in synthesizer as fallback. This test still
+takes typed text; the mic and transcription are connected in the full robot.
 
 ```bash
 python src/chat_console.py --speak
@@ -267,6 +278,31 @@ The game chooses questions by information gain and accepts `yes`, `probably`,
 extend the list **without retraining any model**. The current curated catalog has
 60 objects, and the algorithm has no hard object limit.
 
+The live game is hybrid, but the two parts have strict boundaries. The
+probability engine owns the object list, question order, scores, exact deductions,
+question budget, and the rule that the robot always guesses the visitor's object.
+Ollama may interpret a relevant natural sentence such as `I use it to move the
+cursor` and may rephrase the next catalog question. It cannot add candidates,
+change scores, skip confirmation, or select the final guess. Invalid, unrelated,
+low-confidence, or malformed model output is ignored and the canonical question
+is used instead.
+
+Question order is hierarchical. Category probes establish technology, school,
+food/drink, or play/mobility first. Once one category owns at least 65% of the
+probability, only details from that branch and genuinely cross-category details
+may be asked. The robot announces the active branch and repeats the normalized
+answer it understood, making a speech-recognition mistake visible immediately.
+
+Simple answers are normalized locally without waiting for Ollama. When semantic
+game input is available, Vosk uses its full vocabulary instead of the old closed
+five-answer grammar. Ollama output must match one of the five answers with at
+least 70% confidence and pass a relevance check. An exact answer to an attribute
+owned by only one catalog object becomes an immediate, explainable deduction.
+
+All five answers remain valid when the robot presents its final guess. `Probably`
+finishes as a close, unconfirmed match, `maybe` asks one more question, and
+`probably not` moves to correction instead of being rejected as invalid input.
+
 Start it by saying `play Akinator`, `play Alkinator`, `start the object game`,
 `twenty questions`, or `guess what I am thinking`. If a spoken answer does not
 look like yes/no/maybe, the robot asks you to repeat it without consuming the
@@ -275,9 +311,10 @@ question. Asking to play again starts a clean round.
 If the game misses a guess, the robot asks for the correct object. If that object
 is already in the catalog, it anonymously stores the round's answers in
 `data/game_trials.jsonl` to improve questions after review. If it is a new object,
-it also asks for a feature that distinguishes it from the wrong object and stores
-the suggestion in `data/pending_object_suggestions.jsonl` for human review before
-adding it to the catalog.
+Ollama may propose one feature question that distinguishes it from the wrong
+object. The visitor must approve that question or provide a better one. The result
+is stored in `data/pending_object_suggestions.jsonl` for human review and is never
+added directly to the trusted catalog.
 
 Music uses `assets/music/playlist.json`, but you must place original or licensed
 tracks in that folder.
@@ -343,18 +380,34 @@ To discard a bad suggestion:
 python src/review_object_suggestions.py --reject 1
 ```
 
-For a laptop and a first Raspberry Pi 5 test, the recommended model is
-`llama3.2:1b`. Ollama downloads it once and then serves conversations on
-`localhost` — this is not training from scratch. The Pi needs enough memory and a
-real speed test before the fair.
+The laptop uses `llama3.2:1b`. Ollama downloads it once and then serves
+conversations on `localhost`; this is prompt configuration, not training from scratch.
 
 ## Voice conversation
 
-The spoken demo uses the English recognizer already installed on Windows for the
-laptop, and **Vosk** locally on Raspberry Pi. The default voice is **Piper** with
+The spoken demo uses **Vosk** locally on the laptop. For guided game turns it runs a
+free transcription and a short-answer transcription over the same temporary audio
+stream. A clear guided answer repairs phrases such as `probably not`, while a richer
+sentence remains available to the semantic game interpreter. The default voice is **Piper** with
 the local neural voice `en_US-lessac-medium`, softer and more natural than the
 classic Windows voice. The voice model downloads once, then audio does not go to
-any API. Use headphones so the mic does not hear the speakers during laptop tests.
+any API. Installed music pauses during a microphone turn and resumes after an
+unrelated reply so the recognizer does not compete with the speakers.
+
+The Ollama provider always keeps the system rules plus the four most recent
+conversation turns, so later questions can refer to recent details. It also
+guards physical actions: only an explicit game phrase can start Akinator, while
+`play`, `ok play`, `play it`, `song`, and `music` route to music. Messages with
+multiple questions are explicitly answered as multiple parts.
+
+Before Ollama sees a turn, the runtime gives it exactly one route: conversation,
+game start, game answer, music request, music category, or music control. Playback
+commands `pause`, `resume`, `next song`, and `stop music` are local and deterministic.
+
+During the full demo, the terminal prints `Heard (not saved): ...` and
+`Robot says: ...`. This transcript is only diagnostic console output and is not
+written to a file. It separates microphone transcription errors from language
+model or TTS errors during rehearsal.
 
 ```bash
 python src/voice_demo.py --ollama-model llama3.2:1b
@@ -374,6 +427,10 @@ selection adapts the TTS approach from the MIT-licensed
 [`tsaristov/business_suite`](https://github.com/tsaristov/business_suite); it
 does not copy a voice model or require that web application.
 
+In the full robot, Piper is the primary voice and the Windows synthesizer is an
+automatic fallback. A failure in either voice leaves the subtitle available and
+does not freeze the listening loop.
+
 List and pick a microphone / recognizer:
 
 ```bash
@@ -391,39 +448,46 @@ For the fair, use the unified mode: the camera keeps detecting gestures and the
 face keeps `listening`, `thinking`, and `speaking` during the conversation.
 **Hold the space bar** while you talk and release it so the robot processes the
 sentence. During conversation, gestures do not change the face; afterwards you must
-remove your hands from the camera before making a new sign. Outside the
-conversation, `heart` stays visible for 1.5 s so it does not vanish if your hands
-leave the frame.
+hold a fresh stable sign before it activates. One uncertain camera frame no longer
+restarts an otherwise stable pose. Outside the
+conversation, `heart` stays visible for 1.5 s and `mohan` for 2 s so they do not
+vanish as soon as your hands leave the frame.
+
+Music playback is local and only uses files listed in `assets/music/playlist.json`.
+The playlist supports MP3 and WAV files. Pygame keeps the current song paused while
+the visitor speaks and resumes from the same position after unrelated conversation.
+The platform player remains a compatibility fallback if Pygame is unavailable.
 
 ```bash
 python src/interactive_robot.py --ollama-model spis-robot --recognizer vosk --microphone 1
 ```
 
-Press **`Q`** in either window to quit. Key flags: `--model`, `--camera`,
+The face is the only window shown by default. Press **`D`** to show or hide camera
+diagnostics and **`Q`** to quit. Diagnostics show what Vosk heard, the selected route,
+the resulting action, microphone peak level, and gesture scores. Nothing is written
+unless `--diagnostic-log data/turn_diagnostics.jsonl` is supplied; even then only text
+and numeric levels are saved, never microphone audio or camera images. Use
+`--fullscreen` for presentation mode. Key flags:
+`--model`, `--camera`, `--debug-camera`, `--fullscreen`,
 `--ollama-model` (default `spis-robot`), `--speech-model`, `--microphone`,
 `--recognizer {auto,windows,vosk}`, `--tts {piper,windows}`, `--piper-voice`,
-`--voice`, `--voice-rate`, `--listen-seconds`.
+`--voice`, `--voice-rate`, `--listen-seconds`, `--diagnostic-log`.
 
 The `spis-robot` model is a local configuration of `llama3.2:1b` with the
 project's rules and examples, created with `config/spis-robot.Modelfile`. It is
 **not** a from-scratch weight training; a real weight fine-tune would need a large
 set of voluntary, labeled, evaluated dialogues.
 
-## Deploying to Raspberry Pi
+## Laptop deployment
 
-1. Copy the project folder to the Pi via USB, Git, or the local network.
-2. Install the dependencies and run `python src/setup_assets.py` on the Pi.
-3. Connect the official camera and test `python src/live_demo.py --camera 0`.
-4. If the camera uses another index, change `--camera` to `1` or `2`.
-
-The first test should use a USB webcam or the Raspberry camera configured as a
-V4L2 device. `Picamera2` integration is added once we have the physical Pi, to
-avoid writing code that cannot be tested against real hardware.
+This version targets the project laptop: webcam, microphone, speakers, Vosk,
+Piper, and Ollama all run locally. No Raspberry Pi, GPIO, motor, or separate
+display setup is required for the current demonstration scope.
 
 ## Testing
 
 ```bash
-python -m pytest
+python -m unittest discover -s tests -v
 ```
 
 The `tests/` suite covers gesture features, the gesture gate and model, camera and

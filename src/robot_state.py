@@ -17,6 +17,8 @@ class Reaction(StrEnum):
     HEART = "heart"
     ANNOYED = "annoyed"
     CURIOUS = "curious"
+    OK = "ok"
+    MOHAN = "mohan"
 
 
 class Action(StrEnum):
@@ -24,6 +26,10 @@ class Action(StrEnum):
     START_GAME = "start_game"
     STOP = "stop"
     PLAY_MUSIC = "play_music"
+    PAUSE_MUSIC = "pause_music"
+    RESUME_MUSIC = "resume_music"
+    NEXT_MUSIC = "next_music"
+    STOP_MUSIC = "stop_music"
 
 
 @dataclass(frozen=True)
@@ -46,6 +52,9 @@ class RobotController:
             "peace": RobotCommand("Peace!", Reaction.HAPPY),
             "stop": RobotCommand("Okay, I will wait.", Reaction.LISTENING, Action.STOP),
             "heart": RobotCommand("I love that!", Reaction.HEART),
+            "middle_finger": RobotCommand("Hey, be nice!", Reaction.ANNOYED),
+            "ok": RobotCommand("Perfect!", Reaction.OK),
+            "mohan": RobotCommand("Mohan!", Reaction.MOHAN),
             "unknown": RobotCommand("I am not sure which gesture that was.", Reaction.CONFUSED),
             "none": RobotCommand("", Reaction.IDLE),
         }
