@@ -8,6 +8,8 @@ all run locally, with no cloud API during the demo.
 
 > Privacy: the gesture model is trained on **hand-coordinate numbers only** - no
 > photos, no faces are ever stored. See [detailed guide](docs/detailed-guide.md#privacy).
+> The reproducible training dataset is included at `data/landmarks.csv`; each row
+> contains one gesture label and 126 numeric hand-landmark values, never an image.
 
 For the full explanation of the architecture, training, game, and laptop demo,
 read the **[detailed guide](docs/detailed-guide.md)**.

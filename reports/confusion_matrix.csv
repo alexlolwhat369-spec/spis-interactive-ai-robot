@@ -1,0 +1,8 @@
+actual\predicted,heart,middle_finger,mohan,ok,peace,stop,thumbs_up
+heart,49,0,0,0,0,0,0
+middle_finger,0,32,0,0,3,0,1
+mohan,0,0,44,0,0,0,0
+ok,0,1,0,34,0,1,0
+peace,0,0,0,0,42,0,0
+stop,0,1,0,6,2,47,0
+thumbs_up,0,0,0,0,1,1,43

@@ -1,11 +1,14 @@
 # --- Project-specific (generated data, models, reports) ---
 data/landmarks.csv
+!data/landmarks.csv
 data/pending_object_suggestions.jsonl
 data/game_trials.jsonl
 data/turn_diagnostics.jsonl
 data/object_game_calibration.json
 reports/*.csv
 reports/*.json
+!reports/confusion_matrix.csv
+!reports/evaluation.json
 assets/music/*.mp3
 
 # --- Python ---
