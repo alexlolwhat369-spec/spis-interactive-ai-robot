@@ -15,6 +15,7 @@ import numpy as np
 try:
     from .camera_io import open_working_camera
     from .conversation import OllamaConversationProvider, RuleConversationProvider
+    from .diagnostics import TurnDiagnostics
     from .gesture_features import landmarks_to_features
     from .gesture_gate import GestureGate
     from .gesture_model import GestureKNN, Prediction
@@ -29,6 +30,7 @@ try:
 except ImportError:  # Supports direct execution: python src/interactive_robot.py
     from camera_io import open_working_camera
     from conversation import OllamaConversationProvider, RuleConversationProvider
+    from diagnostics import TurnDiagnostics
     from gesture_features import landmarks_to_features
     from gesture_gate import GestureGate
     from gesture_model import GestureKNN, Prediction
@@ -116,6 +118,7 @@ class VoiceWorker:
         music: MusicSelector | None = None,
         project_root: Path = ROOT,
         music_player: MusicPlayer | None = None,
+        diagnostics: TurnDiagnostics | None = None,
     ) -> None:
         self.listener = listener
         self.speaker = speaker
@@ -124,6 +127,8 @@ class VoiceWorker:
         self.music = music
         self.project_root = project_root
         self.music_player = music_player or MusicPlayer()
+        self.diagnostics = diagnostics or TurnDiagnostics()
+        self._music_category: str | None = None
         self._music_paused_for_turn = False
         self.state = VoiceState()
         self.stop_requested = threading.Event()
@@ -146,6 +151,7 @@ class VoiceWorker:
         # resumes it after the robot finishes replying.
         self._music_paused_for_turn = self.music_player.pause()
         self._release_listening.clear()
+        self.diagnostics.begin()
         self._start_task(self._listen_and_respond)
         return True
 
@@ -184,36 +190,71 @@ class VoiceWorker:
 
     def _listen_and_respond(self) -> None:
         self.state.set(Reaction.LISTENING, "Hold SPACE and speak")
-        if self.session.expects_game_answer and not getattr(self.session, "supports_semantic_game_input", False):
+        if self.session.expects_game_answer:
             phrases = GAME_ANSWER_PHRASES
         elif getattr(self.session, "expects_music_category", False):
             phrases = MUSIC_CATEGORY_PHRASES
         else:
             phrases = None
         heard = self.listener.listen_once(self.listen_seconds, self._release_listening, phrases=phrases)
+        metrics = getattr(self.listener, "last_metrics", None)
+        mic_peak = float(getattr(metrics, "peak_level", 0.0))
+        mic_average = float(getattr(metrics, "average_level", 0.0))
+        transcript_source = str(getattr(metrics, "transcript_source", "unknown"))
         if self.stop_requested.is_set():
             return
         if not heard:
             print("Heard: (nothing)")
+            self.diagnostics.no_input(mic_peak=mic_peak, mic_average=mic_average)
             if self._music_paused_for_turn:
                 self.music_player.resume()
             self._music_paused_for_turn = False
             self.state.set(Reaction.IDLE, "Hold SPACE to talk")
             return
         print(f"Heard (not saved): {heard}")
+        self.diagnostics.heard(
+            heard,
+            mic_peak=mic_peak,
+            mic_average=mic_average,
+            transcript_source=transcript_source,
+        )
         if heard.lower() in {"quit", "exit"}:
             self.music_player.stop()
             self._say("Goodbye!", Reaction.HAPPY)
             self.stop_requested.set()
             return
         self.state.set(Reaction.THINKING, f"Heard: {heard[:60]}")
-        response = self.session.respond(heard).conversation
-        resume_music = self._music_paused_for_turn and response.command.action not in {Action.PLAY_MUSIC, Action.STOP}
+        routed_message = (
+            "stop music"
+            if self._music_paused_for_turn and heard.lower().strip() == "stop" and not self.session.game_active
+            else heard
+        )
+        session_result = self.session.respond(routed_message)
+        response = session_result.conversation
+        music_actions = {
+            Action.PLAY_MUSIC,
+            Action.PAUSE_MUSIC,
+            Action.RESUME_MUSIC,
+            Action.NEXT_MUSIC,
+            Action.STOP_MUSIC,
+        }
+        resume_music = self._music_paused_for_turn and response.command.action not in music_actions
+        self.diagnostics.complete(
+            route=session_result.route.value,
+            action=response.command.action.value,
+            reaction=response.command.reaction.value,
+            reply=response.command.reply,
+            provider_error=response.provider_error,
+        )
         if response.command.action == Action.PLAY_MUSIC:
             self._handle_music(response.music_category)
-        elif response.command.action == Action.STOP and self._music_paused_for_turn:
-            self.music_player.stop()
-            self._say("Music stopped.", Reaction.OK)
+        elif response.command.action in {
+            Action.PAUSE_MUSIC,
+            Action.RESUME_MUSIC,
+            Action.NEXT_MUSIC,
+            Action.STOP_MUSIC,
+        }:
+            self._handle_music_control(response.command.action)
         else:
             self._say(response.command.reply, response.command.reaction)
         if resume_music:
@@ -231,9 +272,35 @@ class VoiceWorker:
         if not path.is_file():
             self._say("I understood the music request, but no playable music file is installed yet.", Reaction.CONFUSED)
             return
+        self._music_category = category or track.category
         self._say(f"Playing {track.title}.", Reaction.HAPPY)
         if not self.music_player.play(track, self.project_root):
             self._say("I found the track, but the audio player could not open it.", Reaction.CONFUSED)
+
+    def _handle_music_control(self, action: Action) -> None:
+        if action == Action.STOP_MUSIC:
+            stopped = self.music_player.stop()
+            self._say("Music stopped." if stopped else "No music is playing.", Reaction.OK if stopped else Reaction.CONFUSED)
+            self._music_paused_for_turn = False
+            return
+        if action == Action.PAUSE_MUSIC:
+            paused = self._music_paused_for_turn or self.music_player.pause()
+            self._say("Music paused." if paused else "No music is playing.", Reaction.OK if paused else Reaction.CONFUSED)
+            self._music_paused_for_turn = False
+            return
+        if action == Action.RESUME_MUSIC:
+            self._say("Resuming the music.", Reaction.OK)
+            resumed = self.music_player.resume()
+            if not resumed:
+                self._say("There is no paused music to resume.", Reaction.CONFUSED)
+            self._music_paused_for_turn = False
+            return
+        if action == Action.NEXT_MUSIC:
+            if not self.music_player.is_active or self.music is None:
+                self._say("There is no active playlist to skip.", Reaction.CONFUSED)
+            else:
+                self._handle_music(self._music_category)
+            self._music_paused_for_turn = False
 
 
 def build_listener(args: argparse.Namespace) -> tuple[object, str]:
@@ -260,6 +327,11 @@ def main() -> None:
     parser.add_argument("--voice-rate", type=int, default=4, help="Voice energy from -10 to 10.")
     parser.add_argument("--listen-seconds", type=float, default=12.0)
     parser.add_argument("--debug-camera", action="store_true", help="Show the camera diagnostics window at startup.")
+    parser.add_argument(
+        "--diagnostic-log",
+        type=Path,
+        help="Optional text-only JSONL turn log. Microphone audio and camera images are never written.",
+    )
     parser.add_argument("--fullscreen", action="store_true", help="Show the robot face in a fullscreen laptop window.")
     args = parser.parse_args()
     if not args.model.exists():
@@ -284,7 +356,8 @@ def main() -> None:
         speaker = windows_speaker
         tts_name = "Windows voice"
     music = MusicSelector.from_file(ROOT / "assets" / "music" / "playlist.json")
-    voice = VoiceWorker(listener, speaker, session, args.listen_seconds, music)
+    diagnostics = TurnDiagnostics(args.diagnostic_log)
+    voice = VoiceWorker(listener, speaker, session, args.listen_seconds, music, diagnostics=diagnostics)
 
     gate = GestureGate(distance_limit=gesture_model.distance_limit)
     controller = RobotController()
@@ -366,6 +439,25 @@ def main() -> None:
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.55,
                 (255, 220, 0),
+                2,
+            )
+            turn = diagnostics.current()
+            cv2.putText(
+                frame,
+                f"Heard: {turn.heard[:58] or '-'}",
+                (20, 202),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.52,
+                (160, 255, 190),
+                2,
+            )
+            cv2.putText(
+                frame,
+                f"Route: {turn.route} | action: {turn.action} | mic peak: {turn.mic_peak:.0%}",
+                (20, 232),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.50,
+                (160, 255, 190),
                 2,
             )
 

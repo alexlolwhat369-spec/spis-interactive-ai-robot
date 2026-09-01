@@ -50,7 +50,9 @@ GAME_QUESTION_SCHEMA = {
 
 SYSTEM_PROMPT = """You are SPIS Robot, a friendly, upbeat English-speaking science-fair robot.
 Reply in one to three short sentences. Address every distinct question or request in the
-visitor's current message, and use recent conversation details when they matter. Return
+visitor's current message, using one short sentence per distinct request when needed. If the
+visitor combines a social comment with a request, acknowledge both. Use recent conversation
+details when they matter. Return
 only JSON matching the supplied schema.
 Your real capabilities are: short conversation, reacting to explicit words and trained hand
 gestures, playing installed local music, and an object guessing game where you guess the
@@ -117,6 +119,22 @@ def is_music_request(message: str) -> bool:
     return bool(re.fullmatch(r"(?:(?:ok|okay|sure) )?(?:please )?play(?: it)?", text))
 
 
+def music_control_action(message: str) -> Action | None:
+    """Return an unambiguous playback control without asking the language model."""
+    text = re.sub(r"[^a-z0-9' ]+", " ", message.lower())
+    text = " ".join(text.split())
+    controls = (
+        (Action.STOP_MUSIC, r"^(?:please )?(?:stop|turn off)(?: the)? (?:music|song|track|playlist)$"),
+        (Action.PAUSE_MUSIC, r"^(?:please )?pause(?: the)?(?: music| song| track)?$"),
+        (Action.RESUME_MUSIC, r"^(?:please )?(?:resume|continue)(?: the)?(?: music| song| track)?$"),
+        (Action.NEXT_MUSIC, r"^(?:please )?(?:next|skip)(?: the)?(?: music| song| track)?$"),
+    )
+    for action, pattern in controls:
+        if re.fullmatch(pattern, text):
+            return action
+    return None
+
+
 def is_music_composition_request(message: str) -> bool:
     """Separate unsupported music creation from playback of installed tracks."""
     text = re.sub(r"[^a-z0-9' ]+", " ", message.lower())
@@ -159,6 +177,15 @@ def explicit_action_result(message: str) -> ConversationResult | None:
                 Reaction.CONFUSED,
             )
         )
+    music_control = music_control_action(message)
+    if music_control is not None:
+        replies = {
+            Action.STOP_MUSIC: "Stopping the music.",
+            Action.PAUSE_MUSIC: "Pausing the music.",
+            Action.RESUME_MUSIC: "Resuming the music.",
+            Action.NEXT_MUSIC: "Playing the next track.",
+        }
+        return ConversationResult(RobotCommand(replies[music_control], Reaction.OK, music_control))
     if is_game_request(message):
         return ConversationResult(
             RobotCommand("Think of one object. I will ask questions and try to guess it.", Reaction.PROUD, Action.START_GAME)
@@ -397,6 +424,14 @@ class OllamaConversationProvider:
             action = Action.NONE
         if action == Action.PLAY_MUSIC and not is_music_request(message):
             action = Action.NONE
+        music_controls = {
+            Action.PAUSE_MUSIC,
+            Action.RESUME_MUSIC,
+            Action.NEXT_MUSIC,
+            Action.STOP_MUSIC,
+        }
+        if action in music_controls and music_control_action(message) != action:
+            action = Action.NONE
         if action == result.command.action:
             return result
         return ConversationResult(
@@ -419,6 +454,15 @@ class OllamaConversationProvider:
         asks_for_question = bool(re.search(r"\bask me\b[^.!?]*\bquestion\b", message, re.IGNORECASE))
         if asks_for_question and "?" not in reply:
             reply = f"{reply} What do you think about that?".strip()
+        explicit_emotion = explicit_conversation_reaction(message)
+        has_follow_up_request = bool(
+            re.search(r"\b(?:tell|explain|show|give|ask|what|why|how|can|could|would)\b", message, re.IGNORECASE)
+        )
+        acknowledged_compliment = bool(
+            re.search(r"\b(?:thank|glad|happy|appreciate|kind of you)\b", reply, re.IGNORECASE)
+        )
+        if explicit_emotion == Reaction.HAPPY and has_follow_up_request and not acknowledged_compliment:
+            reply = f"Thank you! {reply}".strip()
         if not reply:
             reply = "Tell me what you would like to explore next."
         reply = reply[:280]

@@ -2,6 +2,7 @@
 data/landmarks.csv
 data/pending_object_suggestions.jsonl
 data/game_trials.jsonl
+data/turn_diagnostics.jsonl
 data/object_game_calibration.json
 reports/*.csv
 reports/*.json

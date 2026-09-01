@@ -10,6 +10,7 @@ from src.conversation import (
     is_game_request,
     is_music_composition_request,
     is_music_request,
+    music_control_action,
     _valid_game_question,
 )
 from src.robot_state import Action, Reaction, RobotCommand
@@ -28,6 +29,22 @@ class ConversationTests(unittest.TestCase):
         result = self.provider.respond("Play energetic music")
         self.assertEqual(result.command.action, Action.PLAY_MUSIC)
         self.assertEqual(result.music_category, "energetic")
+
+    def test_music_controls_are_deterministic_and_do_not_start_the_game(self) -> None:
+        cases = {
+            "stop the music": Action.STOP_MUSIC,
+            "pause": Action.PAUSE_MUSIC,
+            "resume music": Action.RESUME_MUSIC,
+            "next song": Action.NEXT_MUSIC,
+        }
+        for message, expected in cases.items():
+            with self.subTest(message=message):
+                self.assertEqual(music_control_action(message), expected)
+                result = explicit_action_result(message)
+                self.assertIsNotNone(result)
+                assert result is not None
+                self.assertEqual(result.command.action, expected)
+                self.assertFalse(is_game_request(message))
 
     def test_music_mood_phrases_choose_the_expected_category(self) -> None:
         cases = {
@@ -73,6 +90,16 @@ class ConversationTests(unittest.TestCase):
 
         self.assertIn("?", repaired.command.reply)
         self.assertEqual(repaired.command.reaction, Reaction.SPEAKING)
+
+    def test_compound_compliment_and_request_acknowledges_both_parts(self) -> None:
+        original = ConversationResult(RobotCommand("Why did the robot cross the road?", Reaction.HAPPY))
+
+        repaired = OllamaConversationProvider._guard_reply_content(
+            "You are cute, and tell me a short joke.", original
+        )
+
+        self.assertTrue(repaired.command.reply.startswith("Thank you!"))
+        self.assertIn("robot", repaired.command.reply)
 
     def test_unsolicited_game_invitation_is_removed_from_normal_conversation(self) -> None:
         original = ConversationResult(
@@ -161,6 +188,15 @@ class ConversationTests(unittest.TestCase):
         guarded = OllamaConversationProvider._guard_model_action("Tell me about Mars", invented)
 
         self.assertEqual(guarded.command.action, Action.NONE)
+
+    def test_small_model_cannot_invent_music_controls(self) -> None:
+        invented = ConversationResult(RobotCommand("Paused.", Reaction.OK, Action.PAUSE_MUSIC))
+
+        guarded = OllamaConversationProvider._guard_model_action("Tell me about Mars", invented)
+        allowed = OllamaConversationProvider._guard_model_action("pause music", invented)
+
+        self.assertEqual(guarded.command.action, Action.NONE)
+        self.assertEqual(allowed.command.action, Action.PAUSE_MUSIC)
 
     def test_semantic_game_answer_requires_high_confidence(self) -> None:
         provider = OllamaConversationProvider("test-model")

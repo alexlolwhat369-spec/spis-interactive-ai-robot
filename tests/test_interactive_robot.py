@@ -8,7 +8,7 @@ from src.interactive_robot import GestureFeedback, VoiceActivity, VoiceState, Vo
 from src.conversation import ConversationResult
 from src.music import MusicSelector, Track
 from src.robot_runtime import SessionResult
-from src.robot_state import Reaction, RobotCommand, RobotController
+from src.robot_state import Action, Reaction, RobotCommand, RobotController
 
 
 class InteractiveRobotTests(unittest.TestCase):
@@ -124,6 +124,32 @@ class InteractiveRobotTests(unittest.TestCase):
 
         self.assertTrue(player.resumed)
 
+    def test_stop_music_control_reaches_the_owned_player(self) -> None:
+        class Speaker:
+            def __init__(self) -> None:
+                self.messages: list[str] = []
+
+            def speak(self, text: str, *args: object) -> bool:
+                self.messages.append(text)
+                return True
+
+        class Player:
+            def __init__(self) -> None:
+                self.stopped = False
+
+            def stop(self) -> bool:
+                self.stopped = True
+                return True
+
+        speaker = Speaker()
+        player = Player()
+        worker = VoiceWorker(object(), speaker, object(), 1.0, music_player=player)
+
+        worker._handle_music_control(Action.STOP_MUSIC)
+
+        self.assertTrue(player.stopped)
+        self.assertEqual(speaker.messages[-1], "Music stopped.")
+
     def test_game_answer_turn_uses_the_guided_speech_vocabulary(self) -> None:
         class RecordingListener:
             def __init__(self) -> None:
@@ -144,7 +170,7 @@ class InteractiveRobotTests(unittest.TestCase):
         self.assertIsNotNone(listener.phrases)
         self.assertIn("probably not", listener.phrases)
 
-    def test_semantic_game_turn_uses_full_speech_recognition(self) -> None:
+    def test_semantic_game_turn_uses_dual_pass_guidance(self) -> None:
         class RecordingListener:
             def __init__(self) -> None:
                 self.phrases: tuple[str, ...] | None = ("not called",)
@@ -162,4 +188,5 @@ class InteractiveRobotTests(unittest.TestCase):
 
         worker._listen_and_respond()
 
-        self.assertIsNone(listener.phrases)
+        self.assertIsNotNone(listener.phrases)
+        self.assertIn("probably not", listener.phrases)

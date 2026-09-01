@@ -7,7 +7,7 @@ import unittest
 
 from src.conversation import ConversationResult, RuleConversationProvider
 from src.object_game import ObjectGuessingGame, ObjectProfile, default_likelihoods
-from src.robot_runtime import RobotDialogueSession, answer_from_text, object_name_from_text
+from src.robot_runtime import RobotDialogueSession, TurnRoute, answer_from_text, object_name_from_text
 from src.robot_state import Action, Reaction, RobotCommand
 
 
@@ -33,6 +33,40 @@ class RobotRuntimeTests(unittest.TestCase):
         self.assertEqual(result.conversation.command.reaction, Reaction.LISTENING)
         self.assertIn("yes, probably, maybe, probably not, or no", result.conversation.command.reply)
         self.assertTrue(self.session.expects_game_answer)
+        self.assertEqual(result.route, TurnRoute.GAME_START)
+
+    def test_router_keeps_music_conversation_and_game_separate(self) -> None:
+        self.assertEqual(self.session.route_message("Tell me about Mars"), TurnRoute.CONVERSATION)
+        self.assertEqual(self.session.route_message("play music"), TurnRoute.MUSIC_REQUEST)
+        self.assertEqual(self.session.route_message("play the guessing game"), TurnRoute.GAME_START)
+        self.assertEqual(self.session.route_message("pause music"), TurnRoute.MUSIC_CONTROL)
+
+        self.session.respond("play the guessing game")
+        self.assertEqual(self.session.route_message("probably not"), TurnRoute.GAME_ANSWER)
+        self.assertEqual(self.session.route_message("stop the music"), TurnRoute.MUSIC_CONTROL)
+
+    def test_music_control_does_not_consume_the_active_game_question(self) -> None:
+        self.session.respond("play the guessing game")
+        pending_attribute = self.session.pending_attribute
+        asked = list(self.session.game.asked)
+
+        result = self.session.respond("stop the music")
+
+        self.assertTrue(result.game_active)
+        self.assertEqual(result.route, TurnRoute.MUSIC_CONTROL)
+        self.assertEqual(result.conversation.command.action, Action.STOP_MUSIC)
+        self.assertEqual(self.session.pending_attribute, pending_attribute)
+        self.assertEqual(self.session.game.asked, asked)
+
+    def test_game_request_cancels_a_pending_music_category(self) -> None:
+        self.session.respond("play music")
+        self.assertTrue(self.session.expects_music_category)
+
+        result = self.session.respond("play the guessing game")
+
+        self.assertFalse(self.session.expects_music_category)
+        self.assertTrue(result.game_active)
+        self.assertEqual(result.route, TurnRoute.GAME_START)
 
     def test_electronic_yes_announces_and_keeps_the_technology_branch(self) -> None:
         self.session.respond("Play the object game")

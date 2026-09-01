@@ -9,6 +9,7 @@ from src.speech_input import (
     WindowsMicrophoneListener,
     partial_text_from_result,
     recognizer_vocabulary,
+    select_transcript,
     text_from_result,
 )
 
@@ -33,6 +34,26 @@ class SpeechInputTests(unittest.TestCase):
             recognizer_vocabulary((" Probably ", "maybe", "probably")),
             '["probably", "maybe", "[unk]"]',
         )
+
+    def test_guided_pass_repairs_a_short_uncertain_answer(self) -> None:
+        selected, guided = select_transcript(
+            "probably night",
+            "probably not",
+            ("probably", "probably not", "no"),
+        )
+
+        self.assertEqual(selected, "probably not")
+        self.assertTrue(guided)
+
+    def test_free_pass_preserves_a_rich_semantic_game_answer(self) -> None:
+        selected, guided = select_transcript(
+            "i use it to move the cursor around",
+            "yes",
+            ("yes", "probably", "maybe", "no"),
+        )
+
+        self.assertEqual(selected, "i use it to move the cursor around")
+        self.assertFalse(guided)
 
     def test_release_still_processes_the_last_queued_audio_block(self) -> None:
         class FakeRecognizer:

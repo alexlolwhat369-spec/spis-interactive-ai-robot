@@ -385,7 +385,10 @@ conversations on `localhost`; this is prompt configuration, not training from sc
 
 ## Voice conversation
 
-The spoken demo uses **Vosk** locally on the laptop. The default voice is **Piper** with
+The spoken demo uses **Vosk** locally on the laptop. For guided game turns it runs a
+free transcription and a short-answer transcription over the same temporary audio
+stream. A clear guided answer repairs phrases such as `probably not`, while a richer
+sentence remains available to the semantic game interpreter. The default voice is **Piper** with
 the local neural voice `en_US-lessac-medium`, softer and more natural than the
 classic Windows voice. The voice model downloads once, then audio does not go to
 any API. Installed music pauses during a microphone turn and resumes after an
@@ -396,6 +399,10 @@ conversation turns, so later questions can refer to recent details. It also
 guards physical actions: only an explicit game phrase can start Akinator, while
 `play`, `ok play`, `play it`, `song`, and `music` route to music. Messages with
 multiple questions are explicitly answered as multiple parts.
+
+Before Ollama sees a turn, the runtime gives it exactly one route: conversation,
+game start, game answer, music request, music category, or music control. Playback
+commands `pause`, `resume`, `next song`, and `stop music` are local and deterministic.
 
 During the full demo, the terminal prints `Heard (not saved): ...` and
 `Robot says: ...`. This transcript is only diagnostic console output and is not
@@ -441,7 +448,8 @@ For the fair, use the unified mode: the camera keeps detecting gestures and the
 face keeps `listening`, `thinking`, and `speaking` during the conversation.
 **Hold the space bar** while you talk and release it so the robot processes the
 sentence. During conversation, gestures do not change the face; afterwards you must
-remove your hands from the camera before making a new sign. Outside the
+hold a fresh stable sign before it activates. One uncertain camera frame no longer
+restarts an otherwise stable pose. Outside the
 conversation, `heart` stays visible for 1.5 s and `mohan` for 2 s so they do not
 vanish as soon as your hands leave the frame.
 
@@ -455,11 +463,15 @@ python src/interactive_robot.py --ollama-model spis-robot --recognizer vosk --mi
 ```
 
 The face is the only window shown by default. Press **`D`** to show or hide camera
-diagnostics and **`Q`** to quit. Use `--fullscreen` for presentation mode. Key flags:
+diagnostics and **`Q`** to quit. Diagnostics show what Vosk heard, the selected route,
+the resulting action, microphone peak level, and gesture scores. Nothing is written
+unless `--diagnostic-log data/turn_diagnostics.jsonl` is supplied; even then only text
+and numeric levels are saved, never microphone audio or camera images. Use
+`--fullscreen` for presentation mode. Key flags:
 `--model`, `--camera`, `--debug-camera`, `--fullscreen`,
 `--ollama-model` (default `spis-robot`), `--speech-model`, `--microphone`,
 `--recognizer {auto,windows,vosk}`, `--tts {piper,windows}`, `--piper-voice`,
-`--voice`, `--voice-rate`, `--listen-seconds`.
+`--voice`, `--voice-rate`, `--listen-seconds`, `--diagnostic-log`.
 
 The `spis-robot` model is a local configuration of `llama3.2:1b` with the
 project's rules and examples, created with `config/spis-robot.Modelfile`. It is
@@ -475,7 +487,7 @@ display setup is required for the current demonstration scope.
 ## Testing
 
 ```bash
-python -m pytest
+python -m unittest discover -s tests -v
 ```
 
 The `tests/` suite covers gesture features, the gesture gate and model, camera and

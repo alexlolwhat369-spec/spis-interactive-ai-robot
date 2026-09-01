@@ -73,8 +73,17 @@ class GestureGateTests(unittest.TestCase):
             activation_frames=5,
             mohan_activation_frames=3,
         )
-        mohan = Prediction("mohan", 0.6, 9.5)
+        mohan = Prediction("mohan", 0.4, 9.5)
 
         self.assertEqual(gate.update(mohan, hand_count=2), "none")
         self.assertEqual(gate.update(mohan, hand_count=2), "none")
         self.assertEqual(gate.update(mohan, hand_count=2), "mohan")
+
+    def test_one_uncertain_frame_does_not_restart_a_good_pose(self) -> None:
+        gate = GestureGate(distance_limit=10.0, activation_frames=3, candidate_miss_tolerance=1)
+        peace = Prediction("peace", 0.8, 5.0)
+
+        self.assertEqual(gate.update(peace, hand_count=1), "none")
+        self.assertEqual(gate.update(Prediction("unknown", 0.0, 11.0), hand_count=1), "none")
+        self.assertEqual(gate.update(peace, hand_count=1), "none")
+        self.assertEqual(gate.update(peace, hand_count=1), "peace")

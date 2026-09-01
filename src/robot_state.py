@@ -26,6 +26,10 @@ class Action(StrEnum):
     START_GAME = "start_game"
     STOP = "stop"
     PLAY_MUSIC = "play_music"
+    PAUSE_MUSIC = "pause_music"
+    RESUME_MUSIC = "resume_music"
+    NEXT_MUSIC = "next_music"
+    STOP_MUSIC = "stop_music"
 
 
 @dataclass(frozen=True)

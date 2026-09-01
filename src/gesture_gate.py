@@ -16,13 +16,16 @@ except ImportError:  # Supports direct execution: python src/live_demo.py
 class GestureGate:
     distance_limit: float
     min_confidence: float = 0.6
-    distance_ratio: float = 0.75
-    activation_frames: int = 5
+    distance_ratio: float = 0.9
+    activation_frames: int = 4
     mohan_distance_ratio: float = 1.0
-    mohan_activation_frames: int = 4
+    mohan_min_confidence: float = 0.4
+    mohan_activation_frames: int = 3
+    candidate_miss_tolerance: int = 1
     release_frames: int = 4
     _candidate: str = "none"
     _candidate_frames: int = 0
+    _candidate_misses: int = 0
     _active: str = "none"
     _missing_frames: int = 0
     _armed: bool = True
@@ -31,6 +34,7 @@ class GestureGate:
         """Forget a gesture while another interaction has priority."""
         self._candidate = "none"
         self._candidate_frames = 0
+        self._candidate_misses = 0
         self._active = "none"
         self._missing_frames = 0
 
@@ -58,21 +62,27 @@ class GestureGate:
 
         candidate = prediction.label
         distance_ratio = self.mohan_distance_ratio if candidate == "mohan" else self.distance_ratio
+        confidence_limit = self.mohan_min_confidence if candidate == "mohan" else self.min_confidence
         accepted = (
             candidate not in {"none", "unknown"}
-            and prediction.confidence >= self.min_confidence
+            and prediction.confidence >= confidence_limit
             and prediction.nearest_distance <= self.distance_limit * distance_ratio
             and hand_count >= required_hands(candidate)
         )
         if not accepted:
+            if self._active == "none" and self._candidate != "none" and self._candidate_misses < self.candidate_miss_tolerance:
+                self._candidate_misses += 1
+                return "none"
             self._candidate = "none"
             self._candidate_frames = 0
+            self._candidate_misses = 0
             self._missing_frames += 1
             if self._missing_frames >= self.release_frames:
                 self._active = "none"
             return self._active
 
         self._missing_frames = 0
+        self._candidate_misses = 0
         if candidate == self._candidate:
             self._candidate_frames += 1
         else:

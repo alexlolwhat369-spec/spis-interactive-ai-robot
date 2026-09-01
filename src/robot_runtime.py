@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 
 try:
@@ -13,9 +14,11 @@ try:
         ConversationResult,
         _preserves_question_terms,
         _valid_game_question,
+        explicit_action_result,
         explicit_music_category,
         is_game_request,
         is_music_request,
+        music_control_action,
     )
     from .game_trials import record_trial
     from .object_game import ObjectGuessingGame
@@ -28,9 +31,11 @@ except ImportError:  # Supports direct execution: python src/chat_console.py
         ConversationResult,
         _preserves_question_terms,
         _valid_game_question,
+        explicit_action_result,
         explicit_music_category,
         is_game_request,
         is_music_request,
+        music_control_action,
     )
     from game_trials import record_trial
     from object_game import ObjectGuessingGame
@@ -86,6 +91,15 @@ CATEGORY_FOCUS_LABELS = {
     "food_drink": "food and drink objects",
     "play_mobility": "play, sports, and mobility objects",
 }
+
+
+class TurnRoute(StrEnum):
+    CONVERSATION = "conversation"
+    GAME_START = "game_start"
+    GAME_ANSWER = "game_answer"
+    MUSIC_REQUEST = "music_request"
+    MUSIC_CATEGORY = "music_category"
+    MUSIC_CONTROL = "music_control"
 
 
 def answer_from_text(text: str) -> str | None:
@@ -186,6 +200,7 @@ def object_name_from_text(text: str) -> str:
 class SessionResult:
     conversation: ConversationResult
     game_active: bool
+    route: TurnRoute = TurnRoute.CONVERSATION
 
 
 class RobotDialogueSession:
@@ -241,53 +256,80 @@ class RobotDialogueSession:
     def expects_music_category(self) -> bool:
         return self.pending_music_category
 
-    def respond(self, message: str) -> SessionResult:
+    def route_message(self, message: str) -> TurnRoute:
+        """Choose one owner for the turn before any provider can reinterpret it."""
+        if music_control_action(message) is not None:
+            return TurnRoute.MUSIC_CONTROL
+        if is_game_request(message):
+            return TurnRoute.GAME_START
         if self.game_active:
-            return self._answer_game(message)
+            return TurnRoute.GAME_ANSWER
+        if self.pending_music_category:
+            return TurnRoute.MUSIC_CATEGORY
+        if is_music_request(message):
+            return TurnRoute.MUSIC_REQUEST
+        return TurnRoute.CONVERSATION
+
+    @staticmethod
+    def _with_route(result: SessionResult, route: TurnRoute) -> SessionResult:
+        return SessionResult(result.conversation, result.game_active, route)
+
+    def respond(self, message: str) -> SessionResult:
+        route = self.route_message(message)
+        if route == TurnRoute.MUSIC_CONTROL:
+            result = explicit_action_result(message)
+            if result is None:
+                raise RuntimeError("A routed music control did not produce an action.")
+            return SessionResult(result, self.game_active, route)
+
+        if self.game_active:
+            return self._with_route(self._answer_game(message), route)
 
         normalized = re.sub(r"[^a-z0-9' ]+", " ", message.lower()).strip()
         if self.pending_music_category:
-            if _starts_with(normalized, "stop", "cancel", "never mind", "nevermind"):
+            if route == TurnRoute.GAME_START:
+                self.pending_music_category = False
+            else:
+                if _starts_with(normalized, "stop", "cancel", "never mind", "nevermind"):
+                    self.pending_music_category = False
+                    return SessionResult(
+                        ConversationResult(RobotCommand("Okay, I will not play music.", Reaction.IDLE, Action.STOP)),
+                        False,
+                        route,
+                    )
+                category = explicit_music_category(message)
+                if category is None:
+                    return SessionResult(
+                        ConversationResult(RobotCommand("I did not catch the category. " + MUSIC_CATEGORY_QUESTION, Reaction.CONFUSED)),
+                        False,
+                        route,
+                    )
                 self.pending_music_category = False
                 return SessionResult(
-                    ConversationResult(RobotCommand("Okay, I will not play music.", Reaction.IDLE, Action.STOP)),
+                    ConversationResult(
+                        RobotCommand(f"I will play something {category}.", Reaction.HAPPY, Action.PLAY_MUSIC),
+                        category,
+                    ),
                     False,
+                    route,
                 )
-            category = explicit_music_category(message)
-            if category is None:
-                return SessionResult(
-                    ConversationResult(RobotCommand("I did not catch the category. " + MUSIC_CATEGORY_QUESTION, Reaction.CONFUSED)),
-                    False,
-                )
-            self.pending_music_category = False
-            return SessionResult(
-                ConversationResult(
-                    RobotCommand(f"I will play something {category}.", Reaction.HAPPY, Action.PLAY_MUSIC),
-                    category,
-                ),
-                False,
-            )
 
-        if is_music_request(message) and explicit_music_category(message) is None:
+        if route == TurnRoute.MUSIC_REQUEST and explicit_music_category(message) is None:
             self.pending_music_category = True
             return SessionResult(
                 ConversationResult(RobotCommand(MUSIC_CATEGORY_QUESTION, Reaction.LISTENING)),
                 False,
+                route,
             )
 
-        result = (
-            ConversationResult(RobotCommand(GAME_INTRODUCTION, Reaction.PROUD, Action.START_GAME))
-            if is_game_request(message)
-            else self.provider.respond(message)
-        )
-        if result.command.action != Action.START_GAME:
-            return SessionResult(result, False)
+        if route != TurnRoute.GAME_START:
+            return SessionResult(self.provider.respond(message), False, route)
 
         self.game = ObjectGuessingGame.from_file(self.object_catalog, self.calibration_path)
         self.game_turns = []
         # The LLM may choose the start action, but it never controls the game's
         # role assignment or opening wording.
-        return self._ask_next_question(introduction=GAME_INTRODUCTION)
+        return self._with_route(self._ask_next_question(introduction=GAME_INTRODUCTION), route)
 
     def _answer_game(self, message: str) -> SessionResult:
         normalized = re.sub(r"[^a-z0-9' ]+", " ", message.lower()).strip()

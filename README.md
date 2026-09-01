@@ -77,9 +77,11 @@ python src/interactive_robot.py --ollama-model spis-robot --recognizer vosk --mi
   natural answers and safely rephrases questions, with deterministic fallbacks.
 - **Music:** say `play music`, `play a song`, or the short follow-up `ok play`.
   The robot asks for a category, pauses music while listening, and resumes it after
-  unrelated conversation. Add playable MP3 or WAV tracks to `assets/music/`.
+  unrelated conversation. Say `pause`, `resume`, `next song`, or `stop music` for
+  deterministic playback control. Add playable MP3 or WAV tracks to `assets/music/`.
 - **Display:** the face is the main window. Press **`D`** to show or hide camera
-  diagnostics; use `--fullscreen` for a presentation display.
+  diagnostics. The panel shows the latest transcript, selected route, action, microphone
+  peak, gesture confidence, and gesture distance. Use `--fullscreen` for a presentation display.
 
 ## How to stop
 
@@ -91,7 +93,7 @@ python src/interactive_robot.py --ollama-model spis-robot --recognizer vosk --mi
 ## Run the tests
 
 ```bash
-python -m pytest
+python -m unittest discover -s tests -v
 ```
 
 ## Project layout
