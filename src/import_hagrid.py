@@ -25,6 +25,8 @@ SOURCE_LABELS = {
     "like": "thumbs_up",
     "peace": "peace",
     "stop": "stop",
+    "middle_finger": "middle_finger",
+    "ok": "ok",
     "hand_heart": "heart",
     "hand_heart2": "heart",
 }

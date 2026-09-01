@@ -6,7 +6,7 @@ import unittest
 
 import numpy as np
 
-from src.gesture_features import FEATURE_SIZE, HandSample, landmarks_to_features, required_hands
+from src.gesture_features import FEATURE_SIZE, TRAINING_LABELS, HandSample, landmarks_to_features, required_hands
 
 
 def make_hand(offset_x: float = 0.0) -> HandSample:
@@ -36,6 +36,12 @@ class GestureFeatureTests(unittest.TestCase):
     def test_heart_requires_two_hands(self) -> None:
         self.assertEqual(required_hands("heart"), 2)
         self.assertEqual(required_hands("wave"), 1)
+
+    def test_new_training_labels_use_the_correct_number_of_hands(self) -> None:
+        self.assertTrue({"middle_finger", "ok", "mohan"}.issubset(TRAINING_LABELS))
+        for label in ("middle_finger", "ok"):
+            self.assertEqual(required_hands(label), 1)
+        self.assertEqual(required_hands("mohan"), 2)
 
 
 if __name__ == "__main__":

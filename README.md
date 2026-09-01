@@ -9,8 +9,8 @@ all run locally, with no cloud API during the demo.
 > Privacy: the gesture model is trained on **hand-coordinate numbers only** - no
 > photos, no faces are ever stored. See [detailed guide](docs/detailed-guide.md#privacy).
 
-For the full explanation (architecture, training, the game, Raspberry Pi
-deployment), read the **[detailed guide](docs/detailed-guide.md)**.
+For the full explanation of the architecture, training, game, and laptop demo,
+read the **[detailed guide](docs/detailed-guide.md)**.
 
 ---
 
@@ -63,19 +63,27 @@ python src/interactive_robot.py --ollama-model spis-robot --recognizer vosk --mi
 
 ## How to use
 
-- **Gestures:** `wave`, `thumbs_up`, `peace`, `stop`, `heart` (two hands). No hand
-  = `none`; an unclear hand shows `unknown` instead of guessing.
+- **Gestures:** `thumbs_up`, `peace`, `stop`, `heart` (two hands),
+  `middle_finger`, `ok`, and the two-hand `mohan` M sign. No hand = `none`; an
+  unclear hand shows `unknown` instead of guessing.
 - **Talking:** in `interactive_robot.py` / `voice_demo.py`, **hold SPACE** while you
   speak, release to let the robot process the sentence.
 - **Face states:** idle, listening, thinking, speaking, happy, proud, confused,
-  heart, annoyed, curious.
+  heart, annoyed, curious, Mohan portrait.
 - **The game:** say `play Akinator`, `play Alkinator`, `twenty questions`, or ask
-  it to guess your object. It always tries to guess the object you are thinking of.
-- **Music:** ask for music (drop your own tracks in `assets/music/`).
+  it to guess your object. It always tries to guess the object you are thinking of,
+  and accepts `yes`, `probably`, `maybe`, `probably not`, and `no` throughout.
+  The probability engine owns candidates and guesses; Ollama interprets relevant
+  natural answers and safely rephrases questions, with deterministic fallbacks.
+- **Music:** say `play music`, `play a song`, or the short follow-up `ok play`.
+  The robot asks for a category, pauses music while listening, and resumes it after
+  unrelated conversation. Add playable MP3 or WAV tracks to `assets/music/`.
+- **Display:** the face is the main window. Press **`D`** to show or hide camera
+  diagnostics; use `--fullscreen` for a presentation display.
 
 ## How to stop
 
-- In any **camera / face window**: press **`Q`**.
+- In the robot window: press **`Q`**.
 - In a **terminal-only** program (`chat_console.py`): type `quit`/`exit` or press
   **Ctrl+C**.
 - To leave the Python environment: `deactivate`.

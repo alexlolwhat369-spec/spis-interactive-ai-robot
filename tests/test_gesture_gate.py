@@ -17,8 +17,8 @@ class GestureGateTests(unittest.TestCase):
         self.assertEqual(self.gate.update(prediction, hand_count=1), "peace")
 
     def test_rejects_a_distant_or_low_vote_hand(self) -> None:
-        self.assertEqual(self.gate.update(Prediction("peace", 1.0, 7.0), hand_count=1), "none")
-        self.assertEqual(self.gate.update(Prediction("peace", 0.6, 2.0), hand_count=1), "none")
+        self.assertEqual(self.gate.update(Prediction("peace", 1.0, 8.0), hand_count=1), "none")
+        self.assertEqual(self.gate.update(Prediction("peace", 0.4, 2.0), hand_count=1), "none")
 
     def test_heart_requires_two_hands(self) -> None:
         heart = Prediction("heart", 1.0, 2.0)
@@ -57,3 +57,24 @@ class GestureGateTests(unittest.TestCase):
         self.assertEqual(self.gate.update(peace, hand_count=1), "none")
         self.assertEqual(self.gate.update(peace, hand_count=1), "none")
         self.assertEqual(self.gate.update(peace, hand_count=1), "peace")
+
+    def test_resume_accepts_a_fresh_stable_pose_without_leaving_the_frame(self) -> None:
+        peace = Prediction("peace", 1.0, 2.0)
+        self.gate.suspend()
+        self.gate.resume()
+
+        self.assertEqual(self.gate.update(peace, hand_count=1), "none")
+        self.assertEqual(self.gate.update(peace, hand_count=1), "none")
+        self.assertEqual(self.gate.update(peace, hand_count=1), "peace")
+
+    def test_mohan_has_a_wider_distance_margin_and_shorter_hold(self) -> None:
+        gate = GestureGate(
+            distance_limit=10.0,
+            activation_frames=5,
+            mohan_activation_frames=3,
+        )
+        mohan = Prediction("mohan", 0.6, 9.5)
+
+        self.assertEqual(gate.update(mohan, hand_count=2), "none")
+        self.assertEqual(gate.update(mohan, hand_count=2), "none")
+        self.assertEqual(gate.update(mohan, hand_count=2), "mohan")

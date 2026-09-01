@@ -15,9 +15,11 @@ except ImportError:  # Supports direct execution: python src/live_demo.py
 @dataclass
 class GestureGate:
     distance_limit: float
-    min_confidence: float = 0.8
-    distance_ratio: float = 0.6
-    activation_frames: int = 8
+    min_confidence: float = 0.6
+    distance_ratio: float = 0.75
+    activation_frames: int = 5
+    mohan_distance_ratio: float = 1.0
+    mohan_activation_frames: int = 4
     release_frames: int = 4
     _candidate: str = "none"
     _candidate_frames: int = 0
@@ -37,6 +39,11 @@ class GestureGate:
         self.reset()
         self._armed = False
 
+    def resume(self) -> None:
+        """Start a fresh stability check after a higher-priority interaction."""
+        self.reset()
+        self._armed = True
+
     def update(self, prediction: Prediction, hand_count: int) -> str:
         """Return a gesture only after it is close, valid, and stable."""
         if not self._armed:
@@ -50,10 +57,11 @@ class GestureGate:
             return "none"
 
         candidate = prediction.label
+        distance_ratio = self.mohan_distance_ratio if candidate == "mohan" else self.distance_ratio
         accepted = (
             candidate not in {"none", "unknown"}
             and prediction.confidence >= self.min_confidence
-            and prediction.nearest_distance <= self.distance_limit * self.distance_ratio
+            and prediction.nearest_distance <= self.distance_limit * distance_ratio
             and hand_count >= required_hands(candidate)
         )
         if not accepted:
@@ -70,6 +78,7 @@ class GestureGate:
         else:
             self._candidate = candidate
             self._candidate_frames = 1
-        if self._candidate_frames >= self.activation_frames:
+        activation_frames = self.mohan_activation_frames if candidate == "mohan" else self.activation_frames
+        if self._candidate_frames >= activation_frames:
             self._active = candidate
         return self._active

@@ -17,6 +17,8 @@ class Reaction(StrEnum):
     HEART = "heart"
     ANNOYED = "annoyed"
     CURIOUS = "curious"
+    OK = "ok"
+    MOHAN = "mohan"
 
 
 class Action(StrEnum):
@@ -46,6 +48,9 @@ class RobotController:
             "peace": RobotCommand("Peace!", Reaction.HAPPY),
             "stop": RobotCommand("Okay, I will wait.", Reaction.LISTENING, Action.STOP),
             "heart": RobotCommand("I love that!", Reaction.HEART),
+            "middle_finger": RobotCommand("Hey, be nice!", Reaction.ANNOYED),
+            "ok": RobotCommand("Perfect!", Reaction.OK),
+            "mohan": RobotCommand("Mohan!", Reaction.MOHAN),
             "unknown": RobotCommand("I am not sure which gesture that was.", Reaction.CONFUSED),
             "none": RobotCommand("", Reaction.IDLE),
         }

@@ -5,6 +5,7 @@ data/game_trials.jsonl
 data/object_game_calibration.json
 reports/*.csv
 reports/*.json
+assets/music/*.mp3
 
 # --- Python ---
 __pycache__/

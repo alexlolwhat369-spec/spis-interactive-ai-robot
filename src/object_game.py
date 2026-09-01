@@ -21,7 +21,6 @@ ANSWER_IF_PRESENT: dict[Answer, float] = {
 }
 MAX_QUESTIONS = 12
 CATEGORY_FOCUS_THRESHOLD = 0.65
-CATEGORY_QUESTION_BONUS = 0.10
 
 
 @dataclass(frozen=True)
@@ -74,6 +73,7 @@ class ObjectGuessingGame:
         self.likelihoods_by_question = dict(likelihoods_by_question or {})
         self.scores = {item.name: 1.0 / len(self.objects) for item in self.objects}
         self.asked: list[str] = []
+        self._decisive_guess: str | None = None
 
     @classmethod
     def from_file(cls, path: Path, calibration_path: Path | None = None) -> "ObjectGuessingGame":
@@ -105,12 +105,23 @@ class ObjectGuessingGame:
             for category in categories
         }
 
+    def focused_category(self) -> str | None:
+        """Return the branch that currently owns enough probability to investigate."""
+        probabilities = self.category_probabilities()
+        category, probability = max(probabilities.items(), key=lambda item: item[1])
+        return category if probability >= CATEGORY_FOCUS_THRESHOLD else None
+
     def answer(self, attribute: str, answer: Answer) -> None:
         if attribute not in self.questions:
             raise ValueError(f"Unknown question: {attribute}")
         if answer not in ANSWER_IF_PRESENT:
             raise ValueError(f"Invalid answer: {answer}")
         self.scores = self._normalized_posterior(attribute, answer)
+        self._decisive_guess = self._unique_exact_match(attribute, answer)
+
+    def decisive_guess(self) -> str | None:
+        """Return the only catalog object implied by an exact yes/no answer."""
+        return self._decisive_guess
 
     def expected_information_gain(self, attribute: str) -> float:
         """Expected Shannon entropy reduction for one candidate question."""
@@ -156,9 +167,8 @@ class ObjectGuessingGame:
 
     def _choose_category_aware_question(self, available: list[str]) -> str:
         """Ask category first, then investigate the currently likely branch."""
-        probabilities = self.category_probabilities()
-        dominant_category, dominant_probability = max(probabilities.items(), key=lambda item: item[1])
-        if dominant_probability >= CATEGORY_FOCUS_THRESHOLD:
+        dominant_category = self.focused_category()
+        if dominant_category is not None:
             confirmation = [
                 key
                 for key in available
@@ -166,15 +176,14 @@ class ObjectGuessingGame:
             ]
             if confirmation:
                 return max(confirmation, key=self.expected_information_gain)
-            general_or_other_details = [key for key in available if not self.questions[key].category_probe]
-            if general_or_other_details:
-                # Prefer the active category when two questions are similarly
-                # useful, but let a much stronger general discriminator win.
-                return max(
-                    general_or_other_details,
-                    key=lambda key: self.expected_information_gain(key)
-                    + (CATEGORY_QUESTION_BONUS if self.questions[key].category == dominant_category else 0.0),
-                )
+            focused_details = [
+                key
+                for key in available
+                if not self.questions[key].category_probe
+                and self.questions[key].category in {dominant_category, "general"}
+            ]
+            if focused_details:
+                return max(focused_details, key=self.expected_information_gain)
 
         probes = [key for key in available if self.questions[key].category_probe]
         if probes:
@@ -189,6 +198,14 @@ class ObjectGuessingGame:
         if question.category_probe:
             return item.category == question.category
         return question.yes_attribute in item.attributes
+
+    def _unique_exact_match(self, attribute: str, answer: Answer) -> str | None:
+        if answer not in {"yes", "no"}:
+            return None
+        expected = answer == "yes"
+        question = self.questions[attribute]
+        matches = [item.name for item in self.objects if self._item_answers_yes(item, question) == expected]
+        return matches[0] if len(matches) == 1 else None
 
     def _validate_contrast_questions(self) -> None:
         for key, question in self.questions.items():
