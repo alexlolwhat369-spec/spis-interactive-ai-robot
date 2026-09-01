@@ -4,7 +4,14 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from src.interactive_robot import GestureFeedback, VoiceActivity, VoiceState, VoiceWorker, gestures_locked
+from src.interactive_robot import (
+    GestureFeedback,
+    GestureSoundFeedback,
+    VoiceActivity,
+    VoiceState,
+    VoiceWorker,
+    gestures_locked,
+)
 from src.conversation import ConversationResult
 from src.music import MusicSelector, Track
 from src.robot_runtime import SessionResult
@@ -12,6 +19,26 @@ from src.robot_state import Action, Reaction, RobotCommand, RobotController
 
 
 class InteractiveRobotTests(unittest.TestCase):
+    def test_mohan_sound_plays_once_per_gesture_activation(self) -> None:
+        class Player:
+            def __init__(self) -> None:
+                self.paths: list[Path] = []
+
+            def play(self, path: Path) -> bool:
+                self.paths.append(path)
+                return True
+
+        player = Player()
+        path = Path("mohan.mp3")
+        feedback = GestureSoundFeedback(player, {"mohan": path})
+
+        self.assertTrue(feedback.update("mohan"))
+        self.assertFalse(feedback.update("mohan"))
+        self.assertFalse(feedback.update("none"))
+        self.assertTrue(feedback.update("mohan"))
+
+        self.assertEqual(player.paths, [path, path])
+
     def test_voice_state_is_safe_to_read_and_update(self) -> None:
         state = VoiceState()
         self.assertEqual(state.current().reaction, Reaction.IDLE)

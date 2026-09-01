@@ -10,6 +10,7 @@ reports/*.json
 !reports/confusion_matrix.csv
 !reports/evaluation.json
 assets/music/*.mp3
+assets/sounds/*.mp3
 
 # --- Python ---
 __pycache__/

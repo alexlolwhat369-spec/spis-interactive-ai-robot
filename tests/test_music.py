@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from src.music import MusicPlayer, MusicSelector, Track, play_track
+from src.music import MusicPlayer, MusicSelector, SoundEffectPlayer, Track, play_track
 
 
 class MusicTests(unittest.TestCase):
@@ -13,6 +13,49 @@ class MusicTests(unittest.TestCase):
         self.selector = MusicSelector(
             [Track("Calm", "calm", "calm.wav"), Track("Warm", "warm", "warm.wav"), Track("Celebrate", "celebration", "win.wav")]
         )
+
+    def test_sound_effect_uses_a_separate_cached_mixer_sound(self) -> None:
+        class FakeSound:
+            def __init__(self, path: str) -> None:
+                self.path = path
+                self.volume = 0.0
+                self.plays = 0
+
+            def set_volume(self, volume: float) -> None:
+                self.volume = volume
+
+            def play(self) -> object:
+                self.plays += 1
+                return object()
+
+        class FakeMixer:
+            def __init__(self) -> None:
+                self.created: list[FakeSound] = []
+
+            def Sound(self, path: str) -> FakeSound:
+                sound = FakeSound(path)
+                self.created.append(sound)
+                return sound
+
+        class FakePygame:
+            error = RuntimeError
+
+            def __init__(self) -> None:
+                self.mixer = FakeMixer()
+
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "effect.mp3"
+            path.write_bytes(b"test audio")
+            pygame = FakePygame()
+            player = SoundEffectPlayer(volume=0.65)
+            player._pygame = pygame
+
+            self.assertTrue(player.play(path))
+            self.assertTrue(player.play(path))
+
+        self.assertEqual(len(pygame.mixer.created), 1)
+        self.assertEqual(pygame.mixer.created[0].volume, 0.65)
+        self.assertEqual(pygame.mixer.created[0].plays, 2)
 
     def test_heart_uses_warm_track(self) -> None:
         self.assertEqual(self.selector.choose(gesture="heart").category, "warm")

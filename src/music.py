@@ -57,6 +57,49 @@ class MusicSelector:
         return self._tracks[0]
 
 
+class SoundEffectPlayer:
+    """Play short local effects on a mixer channel without stopping background music."""
+
+    def __init__(self, volume: float = 0.8) -> None:
+        self.volume = max(0.0, min(1.0, volume))
+        self._pygame: object | None = None
+        self._sounds: dict[Path, object] = {}
+        self._lock = threading.Lock()
+
+    def _load_pygame(self) -> object | None:
+        if self._pygame is not None:
+            return self._pygame
+        try:
+            os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
+            import pygame
+
+            if not pygame.mixer.get_init():
+                pygame.mixer.init()
+            self._pygame = pygame
+        except Exception:
+            self._pygame = None
+        return self._pygame
+
+    def play(self, path: Path) -> bool:
+        path = path.resolve()
+        if not path.is_file():
+            return False
+        pygame = self._load_pygame()
+        if pygame is None:
+            return False
+        try:
+            with self._lock:
+                sound = self._sounds.get(path)
+                if sound is None:
+                    sound = pygame.mixer.Sound(str(path))
+                    sound.set_volume(self.volume)
+                    self._sounds[path] = sound
+                channel = sound.play()
+            return channel is not None
+        except (RuntimeError, OSError, pygame.error):
+            return False
+
+
 class MusicPlayer:
     """Own the active local player so speech commands can stop it reliably."""
 

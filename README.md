@@ -67,7 +67,8 @@ python src/interactive_robot.py --ollama-model spis-robot --recognizer vosk --mi
 
 - **Gestures:** `thumbs_up`, `peace`, `stop`, `heart` (two hands),
   `middle_finger`, `ok`, and the two-hand `mohan` M sign. No hand = `none`; an
-  unclear hand shows `unknown` instead of guessing.
+  unclear hand shows `unknown` instead of guessing. `mohan` also triggers the local
+  `assets/sounds/mohan_whistle.mp3` effect once per activation without stopping music.
 - **Talking:** in `interactive_robot.py` / `voice_demo.py`, **hold SPACE** while you
   speak, release to let the robot process the sentence.
 - **Face states:** idle, listening, thinking, speaking, happy, proud, confused,

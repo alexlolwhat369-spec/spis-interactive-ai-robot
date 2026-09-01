@@ -20,7 +20,7 @@ try:
     from .gesture_gate import GestureGate
     from .gesture_model import GestureKNN, Prediction
     from .hand_tracker import HandTracker, draw_hands
-    from .music import MusicPlayer, MusicSelector
+    from .music import MusicPlayer, MusicSelector, SoundEffectPlayer
     from .robot_face import render_face
     from .robot_runtime import GAME_ANSWER_PHRASES, MUSIC_CATEGORY_PHRASES, RobotDialogueSession
     from .robot_state import Action, Reaction, RobotCommand, RobotController
@@ -35,7 +35,7 @@ except ImportError:  # Supports direct execution: python src/interactive_robot.p
     from gesture_gate import GestureGate
     from gesture_model import GestureKNN, Prediction
     from hand_tracker import HandTracker, draw_hands
-    from music import MusicPlayer, MusicSelector
+    from music import MusicPlayer, MusicSelector, SoundEffectPlayer
     from robot_face import render_face
     from robot_runtime import GAME_ANSWER_PHRASES, MUSIC_CATEGORY_PHRASES, RobotDialogueSession
     from robot_state import Action, Reaction, RobotCommand, RobotController
@@ -106,6 +106,25 @@ class GestureFeedback:
         if label != "none":
             return VoiceActivity(gesture_command.reaction, gesture_command.reply)
         return voice_activity
+
+
+class GestureSoundFeedback:
+    """Trigger a mapped effect once when a gesture becomes active."""
+
+    def __init__(self, player: SoundEffectPlayer, sounds: dict[str, Path]) -> None:
+        self.player = player
+        self.sounds = sounds
+        self._previous_label = "none"
+
+    def update(self, label: str) -> bool:
+        triggered = False
+        path = self.sounds.get(label)
+        if label != self._previous_label and path is not None:
+            triggered = self.player.play(path)
+            if not triggered:
+                print(f"Sound effect unavailable: {path}")
+        self._previous_label = label
+        return triggered
 
 
 class VoiceWorker:
@@ -332,6 +351,12 @@ def main() -> None:
         type=Path,
         help="Optional text-only JSONL turn log. Microphone audio and camera images are never written.",
     )
+    parser.add_argument(
+        "--mohan-sound",
+        type=Path,
+        default=ROOT / "assets" / "sounds" / "mohan_whistle.mp3",
+        help="Local sound effect played once when the Mohan gesture activates.",
+    )
     parser.add_argument("--fullscreen", action="store_true", help="Show the robot face in a fullscreen laptop window.")
     args = parser.parse_args()
     if not args.model.exists():
@@ -362,6 +387,7 @@ def main() -> None:
     gate = GestureGate(distance_limit=gesture_model.distance_limit)
     controller = RobotController()
     gesture_feedback = GestureFeedback()
+    gesture_sounds = GestureSoundFeedback(SoundEffectPlayer(), {"mohan": args.mohan_sound})
     space_key = SpaceKey()
     space_was_down = False
     previous_face: np.ndarray | None = None
@@ -421,6 +447,7 @@ def main() -> None:
                     gate.resume()
                     gestures_were_locked = False
                 label = gate.update(prediction, len(hands))
+            gesture_sounds.update(label)
             gesture_command = controller.from_gesture(label)
             now = time.monotonic()
             display_activity = gesture_feedback.choose(label, gesture_command, voice_activity, now)
