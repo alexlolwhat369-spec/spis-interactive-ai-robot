@@ -42,6 +42,39 @@ python src/setup_assets.py
 > Only `opencv-contrib-python` should be installed. Do **not** also install
 > `opencv-python` - both provide the `cv2` module and will clash.
 
+## Web UI (camera + robot in the browser)
+
+Three scripts wrap the whole flow. The web app **requires a trained gesture
+model**, so capture it once with `./train-gestures` before the first `./start`.
+
+```bash
+./setup           # .venv (python3.11+), deps, hand model + voice models (~100 MB)
+./train-gestures  # 5 short webcam capture sessions, then trains model/gesture_knn.npz
+./start           # serve the web UI, then opens http://127.0.0.1:8000
+```
+
+The page shows the **live camera** (with hand-landmark overlay) beside the
+**animated robot face**; perform a gesture and the robot reacts in real time.
+`./start` accepts `--camera <index>` and `--port <n>` (e.g. `./start --camera 1`).
+It refuses to boot until the gesture model exists and tells you which script to run.
+
+### Talk to it (hold-to-talk voice)
+
+Hold the **🎤 button** (or the **Spacebar**), speak, and release. Speech is
+transcribed locally with Vosk, answered by the robot, and spoken back with Piper
+— all on-device. The face shows *listening → thinking → the reply's reaction*.
+
+For real conversation, install [Ollama](https://ollama.com) and create the model:
+
+```bash
+ollama create spis-robot -f config/spis-robot.Modelfile
+```
+
+Without Ollama the robot automatically falls back to built-in rule replies (still
+plays the object-guessing game and reacts to compliments/insults). Voice controls:
+`--no-ollama`, `--ollama-model <name>`. If the voice models are missing the page
+still runs camera + gestures and simply hides the mic button.
+
 ## Quick start
 
 The repo ships with a trained gesture model, so you can run demos immediately.
