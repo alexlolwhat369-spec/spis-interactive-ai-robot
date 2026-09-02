@@ -9,11 +9,13 @@ from pathlib import Path
 import cv2
 
 try:
+    from .camera_io import open_working_camera
     from .capture_quality import CaptureGate
     from .data_io import append_sample
     from .gesture_features import POSE_HINTS, TRAINING_LABELS, landmarks_to_features, required_hands
     from .hand_tracker import HandTracker, draw_hands
 except ImportError:  # Supports direct execution: python src/collect_samples.py
+    from camera_io import open_working_camera
     from capture_quality import CaptureGate
     from data_io import append_sample
     from gesture_features import POSE_HINTS, TRAINING_LABELS, landmarks_to_features, required_hands
@@ -43,15 +45,18 @@ def main() -> None:
     captured = 0
     gate = CaptureGate(min_distance=args.min_distance, cooldown_ms=args.cooldown_ms)
     capture_status = "ready"
-    # This is the same OpenCV camera opening path used for the working thumbs-up capture.
-    camera = cv2.VideoCapture(args.camera)
-    if not camera.isOpened():
-        raise RuntimeError(f"Could not open camera {args.camera}.")
+    camera, pending_frame, camera_backend = open_working_camera(args.camera)
+    print(f"Camera: {camera_backend}")
 
     tracker = HandTracker(HAND_MODEL_PATH)
     try:
         while captured < args.samples:
-            ok, frame = camera.read()
+            if pending_frame is not None:
+                frame = pending_frame
+                pending_frame = None
+                ok = True
+            else:
+                ok, frame = camera.read()
             if not ok:
                 raise RuntimeError("Camera frame could not be read.")
             frame = cv2.flip(frame, 1)

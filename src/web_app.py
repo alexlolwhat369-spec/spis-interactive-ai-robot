@@ -20,18 +20,22 @@ import numpy as np
 from flask import Flask, Response, jsonify, request, send_from_directory
 
 try:
+    from .camera_io import open_working_camera
     from .gesture_features import landmarks_to_features
     from .gesture_gate import GestureGate
     from .gesture_model import GestureKNN, Prediction
     from .hand_tracker import HandTracker, draw_hands
+    from .music import SoundEffectPlayer
     from .robot_face import render_face
     from .robot_state import Reaction, RobotController
     from .voice_engine import VoiceEngine
 except ImportError:  # Supports direct execution: python src/web_app.py
+    from camera_io import open_working_camera
     from gesture_features import landmarks_to_features
     from gesture_gate import GestureGate
     from gesture_model import GestureKNN, Prediction
     from hand_tracker import HandTracker, draw_hands
+    from music import SoundEffectPlayer
     from robot_face import render_face
     from robot_state import Reaction, RobotController
     from voice_engine import VoiceEngine
@@ -42,6 +46,7 @@ GESTURE_MODEL_PATH = ROOT / "model" / "gesture_knn.npz"
 DEFAULT_VOSK_MODEL = ROOT / "models" / "vosk-model-small-en-us-0.15"
 DEFAULT_PIPER_VOICE = ROOT / "models" / "voices" / "en_US-lessac-medium.onnx"
 WEB_DIR = ROOT / "web"
+DEFAULT_MOHAN_SOUND = ROOT / "assets" / "sounds" / "mohan_whistle.mp3"
 
 JPEG_QUALITY = 80
 FACE_WIDTH, FACE_HEIGHT = 800, 480
@@ -56,7 +61,12 @@ class RobotWebRuntime:
     looping.
     """
 
-    def __init__(self, camera_index: int) -> None:
+    def __init__(
+        self,
+        camera_index: int,
+        mohan_sound: Path = DEFAULT_MOHAN_SOUND,
+        sound_player: SoundEffectPlayer | None = None,
+    ) -> None:
         self._camera_index = camera_index
         self._model = GestureKNN.load(GESTURE_MODEL_PATH)
         self._gate = GestureGate(distance_limit=self._model.distance_limit)
@@ -66,8 +76,17 @@ class RobotWebRuntime:
         self._condition = threading.Condition()
         self._camera_jpeg: bytes | None = None
         self._face_jpeg: bytes | None = None
-        self._state = {"gesture": "none", "reaction": "idle", "confidence": 0.0}
+        self._state = {
+            "gesture": "none",
+            "reaction": "idle",
+            "confidence": 0.0,
+            "camera_backend": "starting",
+        }
         self._sequence = 0
+        self._camera_backend = "starting"
+        self._mohan_sound = mohan_sound
+        self._sound_player = sound_player or SoundEffectPlayer()
+        self._previous_sound_label = "none"
 
         # Voice temporarily drives the face (listening/thinking/speaking) even
         # when no gesture is present. Stored as (reaction, subtitle, expiry).
@@ -101,21 +120,14 @@ class RobotWebRuntime:
                 return None
             return reaction, subtitle
 
-    def _open_camera(self) -> cv2.VideoCapture:
-        camera = cv2.VideoCapture(self._camera_index)
-        # isOpened() is not enough on macOS: a virtual/Continuity device can open
-        # yet never deliver a frame. Require a real frame before trusting it.
-        if camera.isOpened():
-            for _ in range(30):
-                ok, frame = camera.read()
-                if ok and frame is not None and frame.size:
-                    return camera
-        camera.release()
-        raise RuntimeError(
-            f"Camera {self._camera_index} did not deliver video. Try another index "
-            "(e.g. ./start --camera 1), close other apps using the webcam, and grant "
-            "your terminal Camera access in System Settings > Privacy & Security > Camera."
-        )
+    def _open_camera(self) -> tuple[cv2.VideoCapture, np.ndarray, str]:
+        return open_working_camera(self._camera_index)
+
+    def _update_gesture_sound(self, label: str) -> None:
+        if label == "mohan" and label != self._previous_sound_label:
+            if not self._sound_player.play(self._mohan_sound):
+                print(f"Mohan sound unavailable: {self._mohan_sound}")
+        self._previous_sound_label = label
 
     def _publish(self, camera_jpeg: bytes, face_jpeg: bytes, state: dict) -> None:
         with self._condition:
@@ -126,11 +138,16 @@ class RobotWebRuntime:
             self._condition.notify_all()
 
     def _run(self) -> None:
-        camera = self._open_camera()
+        camera, pending_frame, self._camera_backend = self._open_camera()
         self._tracker = HandTracker(HAND_MODEL_PATH)
         try:
             while not self._stop.is_set():
-                ok, frame = camera.read()
+                if pending_frame is not None:
+                    frame = pending_frame
+                    pending_frame = None
+                    ok = True
+                else:
+                    ok, frame = camera.read()
                 if not ok:
                     time.sleep(0.05)
                     continue
@@ -143,6 +160,7 @@ class RobotWebRuntime:
                 label = self._gate.update(prediction, len(hand_samples))
                 command = self._controller.from_gesture(label)
                 reaction = command.reaction
+                self._update_gesture_sound(label)
 
                 draw_hands(frame, hand_samples)
                 cv2.putText(frame, f"Gesture: {label}", (20, 38), cv2.FONT_HERSHEY_SIMPLEX, 0.85, (255, 220, 0), 2)
@@ -176,8 +194,9 @@ class RobotWebRuntime:
                     face_jpeg,
                     {
                         "gesture": label,
-                        "reaction": str(reaction),
+                        "reaction": str(face_reaction),
                         "confidence": round(float(prediction.confidence), 2) if label not in {"none", "unknown"} else 0.0,
+                        "camera_backend": self._camera_backend,
                     },
                 )
         finally:
@@ -216,6 +235,7 @@ def _encode(frame: np.ndarray) -> bytes | None:
 
 def create_app(runtime: RobotWebRuntime, engine: VoiceEngine) -> Flask:
     app = Flask(__name__)
+    app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
 
     @app.route("/")
     def index() -> Response:
@@ -239,6 +259,7 @@ def create_app(runtime: RobotWebRuntime, engine: VoiceEngine) -> Flask:
 
     @app.route("/voice/listening", methods=["POST"])
     def voice_listening() -> Response:
+        engine.begin_turn()
         runtime.set_override(Reaction.LISTENING, "Listening...", ttl=20.0)
         return ("", 204)
 
@@ -253,6 +274,7 @@ def create_app(runtime: RobotWebRuntime, engine: VoiceEngine) -> Flask:
 
     @app.route("/voice/done", methods=["POST"])
     def voice_done() -> Response:
+        engine.finish_turn()
         runtime.clear_override()
         return ("", 204)
 
@@ -275,6 +297,7 @@ def main() -> None:
     parser.add_argument("--no-ollama", action="store_true", help="Skip Ollama and always use the built-in rule replies.")
     parser.add_argument("--vosk-model", type=Path, default=DEFAULT_VOSK_MODEL)
     parser.add_argument("--piper-voice", type=Path, default=DEFAULT_PIPER_VOICE)
+    parser.add_argument("--mohan-sound", type=Path, default=DEFAULT_MOHAN_SOUND)
     args = parser.parse_args()
 
     _require_models()
@@ -290,13 +313,14 @@ def main() -> None:
     else:
         print(f"Voice disabled: {engine.reason}")
 
-    runtime = RobotWebRuntime(args.camera)
+    runtime = RobotWebRuntime(args.camera, args.mohan_sound)
     runtime.start()
     app = create_app(runtime, engine)
     print(f"SPIS robot web UI on http://{args.host}:{args.port}  (Ctrl+C to stop)")
     try:
         app.run(host=args.host, port=args.port, threaded=True, use_reloader=False)
     finally:
+        engine.stop()
         runtime.stop()
 
 

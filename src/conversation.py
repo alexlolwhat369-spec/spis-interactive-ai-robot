@@ -123,6 +123,15 @@ def music_control_action(message: str) -> Action | None:
     """Return an unambiguous playback control without asking the language model."""
     text = re.sub(r"[^a-z0-9' ]+", " ", message.lower())
     text = " ".join(text.split())
+    # Visitors often wrap the command in conversational filler. Strip only
+    # well-known command prefixes so questions such as "how do I stop music"
+    # remain ordinary conversation instead of controlling playback.
+    prefix = (
+        r"^(?:(?:and(?: then)?(?: to)?|then|now|hey|ok|okay|please|"
+        r"can you|could you|would you|i said|i want you to|i need you to)\s+)+"
+    )
+    text = re.sub(prefix, "", text).strip()
+    text = re.sub(r"\s+(?:please|for me)$", "", text).strip()
     controls = (
         (Action.STOP_MUSIC, r"^(?:please )?(?:stop|turn off)(?: the)? (?:music|song|track|playlist)$"),
         (Action.PAUSE_MUSIC, r"^(?:please )?pause(?: the)?(?: music| song| track)?$"),

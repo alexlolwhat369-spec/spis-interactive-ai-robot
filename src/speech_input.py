@@ -64,6 +64,57 @@ def select_transcript(full_text: str, guided_text: str, phrases: Sequence[str] |
     return (full_text or guided_text), False
 
 
+def transcribe_pcm16(
+    model: object,
+    recognizer_type: object,
+    pcm16_le: bytes,
+    *,
+    sample_rate: int = 16000,
+    phrases: Sequence[str] | None = None,
+) -> tuple[str, str, bool]:
+    """Decode a complete PCM turn with the same optional guided vocabulary.
+
+    The browser sends a finished utterance instead of a live microphone stream.
+    Running both recognizers over the same bytes keeps short game and music
+    answers consistent with the desktop push-to-talk path.
+    """
+    vocabulary = recognizer_vocabulary(phrases)
+    recognizer = recognizer_type(model, sample_rate)
+    guided = recognizer_type(model, sample_rate, vocabulary) if vocabulary is not None else None
+    for current in (recognizer, guided):
+        set_words = getattr(current, "SetWords", None)
+        if callable(set_words):
+            set_words(False)
+
+    full_parts: list[str] = []
+    guided_parts: list[str] = []
+    chunk_size = 4000
+    for start in range(0, len(pcm16_le), chunk_size):
+        chunk = pcm16_le[start : start + chunk_size]
+        if recognizer.AcceptWaveform(chunk):
+            text = text_from_result(recognizer.Result())
+            if text:
+                full_parts.append(text)
+        if guided is not None and guided.AcceptWaveform(chunk):
+            text = text_from_result(guided.Result())
+            if text:
+                guided_parts.append(text)
+
+    final_text = text_from_result(recognizer.FinalResult())
+    if final_text:
+        full_parts.append(final_text)
+    if guided is not None:
+        guided_final = text_from_result(guided.FinalResult())
+        if guided_final:
+            guided_parts.append(guided_final)
+
+    full_text = " ".join(full_parts).strip()
+    guided_text = " ".join(guided_parts).strip()
+    selected, guided_used = select_transcript(full_text, guided_text, phrases)
+    source = "guided" if guided_used else ("final" if full_text else "none")
+    return selected, source, guided_used
+
+
 class MicrophoneListener:
     """Listens for one completed English utterance; it never uploads audio."""
 

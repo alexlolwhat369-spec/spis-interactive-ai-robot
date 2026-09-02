@@ -56,10 +56,17 @@ class GestureKNN:
         neighbour_indices = np.argsort(distances)[: self.k]
         neighbour_labels = self.labels[neighbour_indices]
         neighbour_distances = distances[neighbour_indices]
-        votes = {label: int(np.sum(neighbour_labels == label)) for label in self.labels_order}
+        # Nearby examples should count more than borderline neighbours. This
+        # keeps KNN stable while avoiding a weak distant majority overruling a
+        # very close pose, which is especially useful for similar open hands.
+        weights = 1.0 / np.maximum(neighbour_distances, 1e-6)
+        votes = {
+            label: float(np.sum(weights[neighbour_labels == label]))
+            for label in self.labels_order
+        }
         label = max(votes, key=votes.get)
         nearest_distance = float(neighbour_distances[0])
-        confidence = float(votes[label] / len(neighbour_indices))
+        confidence = float(votes[label] / np.sum(weights))
         if nearest_distance > self.distance_limit:
             return Prediction("unknown", 0.0, nearest_distance)
         return Prediction(label, confidence, nearest_distance)
@@ -89,4 +96,3 @@ class GestureKNN:
                 distance_limit=float(data["distance_limit"][0]),
                 k=int(data["k"][0]),
             )
-
