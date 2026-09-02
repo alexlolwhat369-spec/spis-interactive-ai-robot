@@ -33,6 +33,9 @@ class ConversationTests(unittest.TestCase):
     def test_music_controls_are_deterministic_and_do_not_start_the_game(self) -> None:
         cases = {
             "stop the music": Action.STOP_MUSIC,
+            "and to stop the music": Action.STOP_MUSIC,
+            "I said stop the music": Action.STOP_MUSIC,
+            "could you pause the music please": Action.PAUSE_MUSIC,
             "pause": Action.PAUSE_MUSIC,
             "resume music": Action.RESUME_MUSIC,
             "next song": Action.NEXT_MUSIC,
@@ -45,6 +48,10 @@ class ConversationTests(unittest.TestCase):
                 assert result is not None
                 self.assertEqual(result.command.action, expected)
                 self.assertFalse(is_game_request(message))
+
+    def test_discussing_a_music_control_does_not_execute_it(self) -> None:
+        self.assertIsNone(music_control_action("How do I stop the music player?"))
+        self.assertIsNone(music_control_action("Tell me why people pause music."))
 
     def test_music_mood_phrases_choose_the_expected_category(self) -> None:
         cases = {

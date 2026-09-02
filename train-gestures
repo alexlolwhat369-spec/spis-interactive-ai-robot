@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Capture the five hand gestures from your webcam, then train the KNN model that
 # the web UI needs. Each gesture opens an OpenCV window:
-#   press  C  to capture a sample (hold the gesture),  Q  to move to the next one.
+#   press C to capture a sample (hold the gesture), Q to move to the next one.
 # Optional: pass a camera index, e.g.  ./train-gestures 1
 set -euo pipefail
 
@@ -22,7 +22,7 @@ fi
 # shellcheck disable=SC1091
 source "$VENV/bin/activate"
 
-LABELS=(wave thumbs_up peace stop heart)
+LABELS=(thumbs_up peace stop heart middle_finger ok mohan)
 echo "About to capture ${#LABELS[@]} gestures (camera $CAMERA)."
 echo "In each window: hold the gesture, press C to capture (~180 samples), Q when done."
 echo

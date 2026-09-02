@@ -75,6 +75,27 @@ plays the object-guessing game and reacts to compliments/insults). Voice control
 `--no-ollama`, `--ollama-model <name>`. If the voice models are missing the page
 still runs camera + gestures and simply hides the mic button.
 
+The web UI uses the same robust Windows camera fallback as the desktop demo. It
+also executes the installed music controls, pauses music while listening, applies
+the guided game-answer vocabulary, and plays the one-shot Mohan effect when its
+authorized local sound file is present.
+
+### Windows PowerShell
+
+The Windows launchers avoid Bash and keep the commands short:
+
+```powershell
+.\Setup-Robot.ps1                 # first-time dependencies and local models
+.\Start-Robot.ps1                 # complete browser experience
+.\Start-Robot.ps1 -Camera 1       # select another camera
+.\Start-Robot.ps1 -NoOllama       # deterministic offline fallback
+```
+
+The browser page lets the visitor choose an available microphone and shows a live
+input-level meter while the button or Spacebar is held. To collect all seven
+gesture classes again, use `.\Train-Gestures.ps1 -Auto` only when new samples are
+actually needed; the trained model already included in the repository can run now.
+
 ## Quick start
 
 The repo ships with a trained gesture model, so you can run demos immediately.
@@ -136,7 +157,7 @@ python -m unittest discover -s tests -v
 
 ```text
 src/     application + library code (entry points below)
-tests/   pytest suite
+tests/   unittest suite
 docs/    detailed guide + design notes
 config/  Ollama Modelfile for the custom "spis-robot" model
 data/    object catalog + generated data (gitignored)

@@ -10,11 +10,39 @@ from src.speech_input import (
     partial_text_from_result,
     recognizer_vocabulary,
     select_transcript,
+    transcribe_pcm16,
     text_from_result,
 )
 
 
 class SpeechInputTests(unittest.TestCase):
+    def test_complete_pcm_turn_uses_guided_game_answer(self) -> None:
+        class FakeRecognizer:
+            def __init__(self, model: object, rate: int, vocabulary: str | None = None) -> None:
+                del model, rate
+                self.guided = vocabulary is not None
+
+            def SetWords(self, enabled: bool) -> None:
+                del enabled
+
+            def AcceptWaveform(self, data: bytes) -> bool:
+                del data
+                return False
+
+            def FinalResult(self) -> str:
+                return '{"text": "probably not"}' if self.guided else '{"text": "probably night"}'
+
+        text, source, guided = transcribe_pcm16(
+            object(),
+            FakeRecognizer,
+            b"audio",
+            phrases=("yes", "probably not", "no"),
+        )
+
+        self.assertEqual(text, "probably not")
+        self.assertEqual(source, "guided")
+        self.assertTrue(guided)
+
     def test_extracts_transcript_from_vosk_result(self) -> None:
         self.assertEqual(text_from_result('{"text": "hello robot"}'), "hello robot")
 

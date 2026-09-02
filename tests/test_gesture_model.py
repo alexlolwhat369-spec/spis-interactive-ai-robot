@@ -35,3 +35,19 @@ class GestureModelTests(unittest.TestCase):
             self.model.save(path)
             loaded = GestureKNN.load(path)
             self.assertEqual(loaded.predict(np.asarray([4.03, 4.02], dtype=np.float32)).label, "peace")
+
+    def test_close_neighbour_outweighs_a_distant_majority(self) -> None:
+        model = GestureKNN(
+            features=np.asarray([[0.01, 0.0], [0.5, 0.0], [0.6, 0.0]], dtype=np.float32),
+            labels=np.asarray(["close", "far", "far"]),
+            mean=np.zeros(2, dtype=np.float32),
+            scale=np.ones(2, dtype=np.float32),
+            labels_order=np.asarray(["close", "far"]),
+            distance_limit=10.0,
+            k=3,
+        )
+
+        prediction = model.predict(np.asarray([0.0, 0.0], dtype=np.float32))
+
+        self.assertEqual(prediction.label, "close")
+        self.assertGreater(prediction.confidence, 0.9)

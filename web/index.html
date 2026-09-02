@@ -369,6 +369,44 @@
 
     /* ---------- Voice ---------- */
     .voice-body { padding: 18px 16px 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .voice-controls {
+      width: 100%;
+      max-width: 560px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    #microphone {
+      min-width: 220px;
+      max-width: 100%;
+      min-height: 44px;
+      color: var(--text);
+      background: var(--surface-2);
+      border: 1px solid var(--edge);
+      border-radius: var(--r-sm);
+      padding: 9px 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+    .input-meter {
+      width: 100%;
+      max-width: 560px;
+      height: 7px;
+      border-radius: var(--r-pill);
+      background: var(--edge);
+      overflow: hidden;
+    }
+    .input-meter > span {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--success), var(--warn), var(--accent));
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 80ms linear;
+    }
     #mic {
       display: inline-flex;
       align-items: center;
@@ -617,6 +655,10 @@
             <div class="value" id="confidence">&mdash;</div>
             <div class="bar"><span id="confidence-bar"></span></div>
           </div>
+          <div class="stat">
+            <div class="label">Camera</div>
+            <div class="value" id="camera-backend">Starting</div>
+          </div>
         </div>
       </section>
     </section>
@@ -649,10 +691,16 @@
       <section class="panel" id="voice" hidden>
         <div class="head"><svg class="icon sm" aria-hidden="true"><use href="#ic-mic" /></svg><h2>Voice</h2></div>
         <div class="voice-body">
-          <button id="mic" disabled>
-            <svg class="icon sm solid" aria-hidden="true"><use href="#ic-mic" /></svg>
-            <span id="mic-label">Hold to talk</span>
-          </button>
+          <div class="voice-controls">
+            <select id="microphone" aria-label="Microphone">
+              <option value="">Default microphone</option>
+            </select>
+            <button id="mic" disabled>
+              <svg class="icon sm solid" aria-hidden="true"><use href="#ic-mic" /></svg>
+              <span id="mic-label">Hold to talk</span>
+            </button>
+          </div>
+          <div class="input-meter" aria-label="Microphone input level"><span id="input-meter-fill"></span></div>
           <div class="hint">Hold the button or the Spacebar, speak, then release.</div>
           <div class="transcript" aria-live="polite">
             <div class="heard" id="heard"></div>
@@ -895,6 +943,7 @@
         const conf = clampPct(s.confidence);
         $("confidence").textContent = conf ? Math.round(conf * 100) + "%" : "—";
         $("confidence-bar").style.transform = `scaleX(${conf})`;
+        $("camera-backend").textContent = s.camera_backend || "Unknown";
         applyMusicState(s.music);
         renderDiag(s.diagnostics);
       } catch (_) { /* server not ready yet */ }
@@ -911,9 +960,12 @@
     const heardEl = $("heard");
     const replyEl = $("reply");
     const noteEl = $("note");
+    const micSelect = $("microphone");
+    const inputMeterFill = $("input-meter-fill");
 
     let audioCtx = null, mediaStream = null, processor = null, sourceNode = null;
     let chunks = [], recording = false, busy = false;
+    let recordingPeak = 0;
 
     async function initVoice() {
       try {
@@ -922,7 +974,25 @@
         if (!info.available) return;
         voiceBox.hidden = false;
         micBtn.disabled = false;
+        await refreshMicrophones();
       } catch (_) { /* voice endpoint absent */ }
+    }
+
+    async function refreshMicrophones() {
+      if (!navigator.mediaDevices?.enumerateDevices) return;
+      const selected = micSelect.value;
+      const devices = (await navigator.mediaDevices.enumerateDevices())
+        .filter((device) => device.kind === "audioinput");
+      micSelect.innerHTML = '<option value="">Default microphone</option>';
+      devices.forEach((device, index) => {
+        const option = document.createElement("option");
+        option.value = device.deviceId;
+        option.textContent = device.label || `Microphone ${index + 1}`;
+        micSelect.appendChild(option);
+      });
+      if ([...micSelect.options].some((option) => option.value === selected)) {
+        micSelect.value = selected;
+      }
     }
 
     function floatTo16kPCM(buffer, inputRate) {
@@ -942,17 +1012,30 @@
       if (recording || busy) return;
       recording = true;
       chunks = [];
+      recordingPeak = 0;
+      inputMeterFill.style.transform = "scaleX(0)";
       micBtn.classList.add("recording");
       micLabel.textContent = "Listening…";
       noteEl.textContent = "";
       // Duck any playing track for the turn; handleVoiceMusic decides whether to restore it.
       if (hasTrack() && !musicAudio.paused) { duckedMusic = true; musicAudio.pause(); }
       try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const deviceId = micSelect.value;
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+        });
+        await refreshMicrophones();
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         sourceNode = audioCtx.createMediaStreamSource(mediaStream);
         processor = audioCtx.createScriptProcessor(4096, 1, 1);
-        processor.onaudioprocess = (e) => { chunks.push(new Float32Array(e.inputBuffer.getChannelData(0))); };
+        processor.onaudioprocess = (e) => {
+          const samples = new Float32Array(e.inputBuffer.getChannelData(0));
+          chunks.push(samples);
+          let peak = 0;
+          for (const sample of samples) peak = Math.max(peak, Math.abs(sample));
+          recordingPeak = Math.max(recordingPeak, peak);
+          inputMeterFill.style.transform = `scaleX(${clampPct(peak * 3)})`;
+        };
         sourceNode.connect(processor);
         processor.connect(audioCtx.destination);
         fetch("/voice/listening", { method: "POST" });
@@ -982,6 +1065,7 @@
       let offset = 0;
       for (const c of chunks) { merged.set(c, offset); offset += c.length; }
       teardownAudio();
+      inputMeterFill.style.transform = "scaleX(0)";
 
       if (total === 0) { micLabel.textContent = "Hold to talk"; return; }
       const pcm = floatTo16kPCM(merged, inputRate);
@@ -998,7 +1082,11 @@
         const data = await res.json();
         heardEl.textContent = data.heard ? `You: ${data.heard}` : "(didn't catch that)";
         replyEl.textContent = data.reply || "";
-        noteEl.textContent = data.provider_error ? "Ollama offline — using local replies." : "";
+        if (recordingPeak < 0.01) {
+          noteEl.textContent = "Microphone input was very low. Select another microphone or speak closer.";
+        } else {
+          noteEl.textContent = data.provider_error ? "Ollama offline — using local replies." : "";
+        }
         if (data.now_playing) applyMusicState(data.now_playing);
         await playReply(data.audio_b64);
         handleVoiceMusic(data);

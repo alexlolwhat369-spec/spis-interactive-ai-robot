@@ -22,6 +22,7 @@ import numpy as np
 from flask import Flask, Response, abort, jsonify, request, send_file, send_from_directory
 
 try:
+    from .camera_io import open_working_camera
     from .diagnostics import TurnDiagnostics
     from .gesture_features import landmarks_to_features
     from .gesture_gate import GestureGate
@@ -32,6 +33,7 @@ try:
     from .robot_state import Reaction, RobotController
     from .voice_engine import VoiceEngine
 except ImportError:  # Supports direct execution: python src/web_app.py
+    from camera_io import open_working_camera
     from diagnostics import TurnDiagnostics
     from gesture_features import landmarks_to_features
     from gesture_gate import GestureGate
@@ -59,6 +61,7 @@ GESTURE_LABELS = ("thumbs_up", "peace", "stop", "heart", "ok", "middle_finger", 
 JPEG_QUALITY = 80
 FACE_WIDTH, FACE_HEIGHT = 800, 480
 BOUNDARY = "frame"
+VOICE_MAX_BYTES = 2 * 1024 * 1024
 
 
 class RobotWebRuntime:
@@ -79,7 +82,12 @@ class RobotWebRuntime:
         self._condition = threading.Condition()
         self._camera_jpeg: bytes | None = None
         self._face_jpeg: bytes | None = None
-        self._state = {"gesture": "none", "reaction": "idle", "confidence": 0.0}
+        self._state = {
+            "gesture": "none",
+            "reaction": "idle",
+            "confidence": 0.0,
+            "camera_backend": "starting",
+        }
         self._sequence = 0
 
         # Voice temporarily drives the face (listening/thinking/speaking) even
@@ -121,21 +129,8 @@ class RobotWebRuntime:
                 return None
             return reaction, subtitle
 
-    def _open_camera(self) -> cv2.VideoCapture:
-        camera = cv2.VideoCapture(self._camera_index)
-        # isOpened() is not enough on macOS: a virtual/Continuity device can open
-        # yet never deliver a frame. Require a real frame before trusting it.
-        if camera.isOpened():
-            for _ in range(30):
-                ok, frame = camera.read()
-                if ok and frame is not None and frame.size:
-                    return camera
-        camera.release()
-        raise RuntimeError(
-            f"Camera {self._camera_index} did not deliver video. Try another index "
-            "(e.g. ./start --camera 1), close other apps using the webcam, and grant "
-            "your terminal Camera access in System Settings > Privacy & Security > Camera."
-        )
+    def _open_camera(self) -> tuple[cv2.VideoCapture, np.ndarray, str]:
+        return open_working_camera(self._camera_index)
 
     def _publish(self, camera_jpeg: bytes, face_jpeg: bytes, state: dict) -> None:
         with self._condition:
@@ -146,11 +141,17 @@ class RobotWebRuntime:
             self._condition.notify_all()
 
     def _run(self) -> None:
-        camera = self._open_camera()
+        camera, first_frame, camera_backend = self._open_camera()
         self._tracker = HandTracker(HAND_MODEL_PATH)
+        pending_frame: np.ndarray | None = first_frame
         try:
             while not self._stop.is_set():
-                ok, frame = camera.read()
+                if pending_frame is not None:
+                    frame = pending_frame
+                    pending_frame = None
+                    ok = True
+                else:
+                    ok, frame = camera.read()
                 if not ok:
                     time.sleep(0.05)
                     continue
@@ -205,6 +206,7 @@ class RobotWebRuntime:
                         "gesture": label,
                         "reaction": str(reaction),
                         "confidence": round(float(prediction.confidence), 2) if label not in {"none", "unknown"} else 0.0,
+                        "camera_backend": camera_backend,
                     },
                 )
         finally:
@@ -336,8 +338,7 @@ def create_app(
 
     @app.route("/voice/listening", methods=["POST"])
     def voice_listening() -> Response:
-        # The browser ducks its own <audio> for the turn; the server only drives
-        # the face here.
+        engine.begin_turn()
         runtime.set_override(Reaction.LISTENING, "Listening...", ttl=20.0)
         return ("", 204)
 
@@ -345,6 +346,8 @@ def create_app(
     def voice() -> Response:
         if not engine.available:
             return jsonify({"error": engine.reason or "Voice is unavailable."}), 503
+        if request.content_length is not None and request.content_length > VOICE_MAX_BYTES:
+            return jsonify({"error": "Voice recording is too large."}), 413
         runtime.set_override(Reaction.THINKING, "", ttl=30.0)
         result = engine.handle(request.get_data())
         runtime.set_override(Reaction(result["reaction"]), result["reply"], ttl=result["audio_seconds"] + 0.5)
@@ -352,6 +355,7 @@ def create_app(
 
     @app.route("/voice/done", methods=["POST"])
     def voice_done() -> Response:
+        engine.finish_turn()
         runtime.clear_override()
         return ("", 204)
 
@@ -423,6 +427,7 @@ def main() -> None:
     try:
         app.run(host=args.host, port=args.port, threaded=True, use_reloader=False)
     finally:
+        engine.stop()
         runtime.stop()
 
 
