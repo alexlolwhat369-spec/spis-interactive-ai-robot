@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from src.music import MusicPlayer, MusicSelector, SoundEffectPlayer, Track, play_track
+from src.music import MusicPlayer, MusicSelector, SoundEffectPlayer, Track, WebMusicController, play_track
 
 
 class MusicTests(unittest.TestCase):
@@ -136,3 +136,68 @@ class MusicTests(unittest.TestCase):
             self.assertFalse(player.is_playing)
             self.assertTrue(player.resume())
             self.assertTrue(player.is_playing)
+
+
+class WebMusicControllerTests(unittest.TestCase):
+    """Browser-mode: the controller selects tracks + exposes stream URLs only."""
+
+    def _controller(self, directory: str, missing: bool = False) -> WebMusicController:
+        if not missing:
+            for name in ("calm.wav", "warm.wav"):
+                (Path(directory) / name).write_bytes(b"x")
+        selector = MusicSelector([Track("Calm", "calm", "calm.wav"), Track("Warm", "warm", "warm.wav")])
+        return WebMusicController(selector, Path(directory))
+
+    def test_categories_follow_playlist_order(self) -> None:
+        with TemporaryDirectory() as directory:
+            controller = self._controller(directory)
+            self.assertEqual(controller.categories(), ("calm", "warm"))
+            self.assertEqual(controller.state()["categories"], ["calm", "warm"])
+
+    def test_select_returns_title_and_stream_url(self) -> None:
+        with TemporaryDirectory() as directory:
+            controller = self._controller(directory)
+            result = controller.select("warm")
+            self.assertTrue(result["ok"])
+            self.assertEqual(result["title"], "Warm")
+            self.assertEqual(result["category"], "warm")
+            self.assertEqual(result["url"], "/music/track/1")
+
+    def test_missing_track_file_reports_reason(self) -> None:
+        with TemporaryDirectory() as directory:
+            controller = self._controller(directory, missing=True)
+            result = controller.select("calm")
+            self.assertFalse(result["ok"])
+            self.assertIn("missing", result["reason"].lower())
+            self.assertIsNone(result["url"])
+
+    def test_apply_action_selects_and_clears(self) -> None:
+        from src.robot_state import Action
+
+        with TemporaryDirectory() as directory:
+            controller = self._controller(directory)
+            self.assertEqual(controller.apply_action(Action.PLAY_MUSIC, "warm")["title"], "Warm")
+            # pause/resume are browser-only: server keeps the current selection.
+            self.assertEqual(controller.apply_action(Action.PAUSE_MUSIC)["title"], "Warm")
+            self.assertIsNone(controller.apply_action(Action.STOP_MUSIC)["title"])
+
+    def test_skip_keeps_category(self) -> None:
+        with TemporaryDirectory() as directory:
+            controller = self._controller(directory)
+            controller.select("warm")
+            result = controller.skip()
+            self.assertTrue(result["ok"])
+            self.assertEqual(result["category"], "warm")
+
+    def test_track_by_index_and_resolve_path(self) -> None:
+        with TemporaryDirectory() as directory:
+            controller = self._controller(directory)
+            track = controller.track_by_index(0)
+            self.assertEqual(track.title, "Calm")
+            self.assertIsNotNone(controller.resolve_path(track))
+            self.assertIsNone(controller.track_by_index(9))
+
+    def test_unavailable_without_playlist(self) -> None:
+        controller = WebMusicController(None, Path("."))
+        self.assertFalse(controller.available)
+        self.assertFalse(controller.select("calm")["ok"])

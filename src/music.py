@@ -34,6 +34,15 @@ class MusicSelector:
         data = json.loads(path.read_text(encoding="utf-8"))
         return cls(Track(**track) for track in data["tracks"])
 
+    @property
+    def categories(self) -> tuple[str, ...]:
+        """Distinct categories in playlist order (stable for UI chips)."""
+        seen: list[str] = []
+        for track in self._tracks:
+            if track.category not in seen:
+                seen.append(track.category)
+        return tuple(seen)
+
     def choose(
         self,
         *,
@@ -302,3 +311,85 @@ class MusicPlayer:
 def play_track(track: Track, project_root: Path) -> bool:
     """Compatibility wrapper for callers that do not need stop control."""
     return MusicPlayer().play(track, project_root)
+
+
+class WebMusicController:
+    """Track selection + now-playing state for BROWSER playback.
+
+    The browser owns the actual ``<audio>`` element; this controller only
+    chooses which playlist track to play, exposes a stable stream URL per track
+    (``/music/track/<index>``), and remembers the current selection so the robot
+    face can show the title and diagnostics can report it. Pause/resume are
+    handled entirely in the browser and never reach the server.
+    """
+
+    def __init__(self, selector: MusicSelector | None, project_root: Path) -> None:
+        self._selector = selector
+        self._project_root = project_root
+        self._tracks: tuple[Track, ...] = tuple(selector._tracks) if selector is not None else ()
+        self._current: Track | None = None
+
+    @property
+    def available(self) -> bool:
+        return self._selector is not None
+
+    def categories(self) -> tuple[str, ...]:
+        return self._selector.categories if self._selector is not None else ()
+
+    def track_by_index(self, index: int) -> Track | None:
+        return self._tracks[index] if 0 <= index < len(self._tracks) else None
+
+    def resolve_path(self, track: Track) -> Path | None:
+        """Absolute path to a track file, or None when it is not installed."""
+        path = Path(track.path)
+        path = path if path.is_absolute() else self._project_root / path
+        return path if path.is_file() else None
+
+    def _url_for(self, track: Track) -> str:
+        return f"/music/track/{self._tracks.index(track)}"
+
+    def select(self, category: str | None = None) -> dict:
+        """Choose a track for the browser to stream; verify the file exists."""
+        if self._selector is None:
+            return self._result(False, "Playlist is not configured.")
+        track = self._selector.choose(requested_category=category)
+        if self.resolve_path(track) is None:
+            return self._result(False, f"Track file missing: {track.title}")
+        self._current = track
+        return self._result(True)
+
+    def skip(self) -> dict:
+        return self.select(self._current.category if self._current is not None else None)
+
+    def clear(self) -> dict:
+        self._current = None
+        return self._result(True)
+
+    def apply_action(self, action: object, category: str | None = None) -> dict:
+        """Map a robot music action to a selection change for the browser."""
+        name = str(action)
+        if name == "play_music":
+            return self.select(category)
+        if name == "next_music":
+            return self.skip()
+        if name == "stop_music":
+            return self.clear()
+        # pause_music / resume_music act on the browser's <audio>, not the server.
+        return self.state()
+
+    def state(self) -> dict:
+        current = self._current
+        return {
+            "available": self.available,
+            "categories": list(self.categories()),
+            "title": current.title if current is not None else None,
+            "category": current.category if current is not None else None,
+            "url": self._url_for(current) if current is not None else None,
+        }
+
+    def _result(self, ok: bool, reason: str | None = None) -> dict:
+        data = self.state()
+        data["ok"] = bool(ok)
+        if reason:
+            data["reason"] = reason
+        return data
