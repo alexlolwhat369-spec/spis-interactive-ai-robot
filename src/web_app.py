@@ -10,6 +10,7 @@ viewers share one capture without fighting over the device.
 from __future__ import annotations
 
 import argparse
+import random
 import sys
 import threading
 import time
@@ -56,6 +57,8 @@ DEFAULT_OK_SOUND = ROOT / "assets" / "sounds" / "ok_reaction.mp3"
 DEFAULT_PEACE_SOUND = ROOT / "assets" / "sounds" / "peace_reaction.wav"
 DEFAULT_ANGRY_SOUND = ROOT / "assets" / "sounds" / "angry_reaction.mp3"
 DEFAULT_MOHAN_SOUND = ROOT / "assets" / "sounds" / "mohan_whistle.mp3"
+# CC0 reaction SFX, one folder per Reaction value, each with variant WAVs.
+DEFAULT_REACTION_SOUND_DIR = ROOT / "assets" / "sounds" / "reaction_lab"
 WEB_DIR = ROOT / "web"
 DIST_DIR = WEB_DIR / "dist"  # Vite build output (React + shadcn/ui UI)
 
@@ -334,6 +337,20 @@ def gesture_catalog() -> list[dict]:
     return catalog
 
 
+def load_reaction_sounds(base: Path = DEFAULT_REACTION_SOUND_DIR) -> dict[str, list[Path]]:
+    """Map each reaction (folder name = Reaction value) to its variant WAVs."""
+    reactions: dict[str, list[Path]] = {}
+    if not base.is_dir():
+        return reactions
+    for child in sorted(base.iterdir()):
+        if not child.is_dir() or child.name.startswith("_"):
+            continue
+        variants = sorted((child / "variants").glob("*.wav"))
+        if variants:
+            reactions[child.name] = variants
+    return reactions
+
+
 def create_app(
     runtime: RobotWebRuntime,
     engine: VoiceEngine,
@@ -342,6 +359,7 @@ def create_app(
     sounds: dict[str, Path] | None = None,
 ) -> Flask:
     sounds = sounds or {}
+    reaction_sounds = load_reaction_sounds()
     app = Flask(__name__)
 
     @app.route("/")
@@ -392,6 +410,16 @@ def create_app(
         if path is None or not path.is_file():
             abort(404)
         return send_file(path, mimetype="audio/mpeg", conditional=True)
+
+    @app.route("/sound/reactions/<reaction>")
+    def reaction_sound(reaction: str) -> Response:
+        # A random variant for the current robot reaction (happy, confused,
+        # ...), played on its own browser <audio> so it layers over music and
+        # gesture effects. Two path segments avoid colliding with /sound/<label>.
+        variants = reaction_sounds.get(reaction)
+        if not variants:
+            abort(404)
+        return send_file(random.choice(variants).resolve(), mimetype="audio/wav", conditional=True)
 
     @app.route("/music/state")
     def music_state() -> Response:

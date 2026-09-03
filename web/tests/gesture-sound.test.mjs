@@ -42,6 +42,7 @@ test("React gesture playback preserves event IDs and a single effect channel", a
     require: (name) => {
       if (name === "react") return react;
       if (name === "@/lib/api") return api;
+      if (name === "@/lib/audio") return { registerAudio: () => () => {} };
       throw new Error(`Unexpected module: ${name}`);
     },
     Audio: AudioStub,

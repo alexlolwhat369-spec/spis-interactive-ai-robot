@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { postVoice, voiceAvailable, voiceDone, voiceListening } from "@/lib/api";
+import { registerAudio } from "@/lib/audio";
 import type { MusicApi } from "@/hooks/useMusic";
 
 const TARGET_RATE = 16000;
@@ -33,11 +34,14 @@ function playReply(b64: string): Promise<void> {
     const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
     const url = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
     const audio = new Audio(url);
+    const unregister = registerAudio(audio, 1);
     audio.onended = () => {
+      unregister();
       URL.revokeObjectURL(url);
       resolve();
     };
     audio.onerror = () => {
+      unregister();
       URL.revokeObjectURL(url);
       resolve();
     };

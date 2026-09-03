@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getGestures, getState, type GestureInfo, type RobotState } from "@/lib/api";
+import { registerAudio } from "@/lib/audio";
 import type { MusicApi } from "@/hooks/useMusic";
 
 export function useRobotState(music: MusicApi) {
@@ -8,14 +9,20 @@ export function useRobotState(music: MusicApi) {
   const soundMap = useRef<Record<string, string>>({});
   const lastGesture = useRef<string | null>(null);
   const lastGestureEvent = useRef<number | undefined>(undefined);
+  const lastReaction = useRef<string | null>(null);
   const sfxRef = useRef<HTMLAudioElement | null>(null);
   const sfxUrl = useRef<string | null>(null);
+  const sfxCleanup = useRef<(() => void) | null>(null);
+  const reactionRef = useRef<HTMLAudioElement | null>(null);
+  const reactionCleanup = useRef<(() => void) | null>(null);
   const applyServerState = music.applyServerState;
 
   const stopGestureSound = useCallback(() => {
     const audio = sfxRef.current;
     sfxRef.current = null;
     sfxUrl.current = null;
+    sfxCleanup.current?.();
+    sfxCleanup.current = null;
     if (audio) {
       audio.pause();
       audio.removeAttribute("src");
@@ -29,9 +36,9 @@ export function useRobotState(music: MusicApi) {
     stopGestureSound();
     const audio = new Audio(url);
     audio.preload = "auto";
-    audio.volume = 0.8;
     sfxRef.current = audio;
     sfxUrl.current = url;
+    sfxCleanup.current = registerAudio(audio, 0.8);
     const retire = () => {
       if (sfxRef.current === audio) stopGestureSound();
     };
@@ -39,6 +46,34 @@ export function useRobotState(music: MusicApi) {
     audio.addEventListener("error", retire, { once: true });
     void audio.play().catch(retire);
   }, [stopGestureSound]);
+
+  const stopReactionSound = useCallback(() => {
+    const audio = reactionRef.current;
+    reactionRef.current = null;
+    reactionCleanup.current?.();
+    reactionCleanup.current = null;
+    if (audio) {
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+    }
+  }, []);
+
+  const playReactionSound = useCallback((reaction: string) => {
+    stopReactionSound();
+    // A random variant served by the backend; 404s (reaction with no files)
+    // resolve through the error handler below and simply play nothing.
+    const audio = new Audio(`/sound/reactions/${reaction}`);
+    audio.preload = "auto";
+    reactionRef.current = audio;
+    reactionCleanup.current = registerAudio(audio, 0.7);
+    const retire = () => {
+      if (reactionRef.current === audio) stopReactionSound();
+    };
+    audio.addEventListener("ended", retire, { once: true });
+    audio.addEventListener("error", retire, { once: true });
+    void audio.play().catch(retire);
+  }, [stopReactionSound]);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,8 +87,9 @@ export function useRobotState(music: MusicApi) {
     return () => {
       cancelled = true;
       stopGestureSound();
+      stopReactionSound();
     };
-  }, [stopGestureSound]);
+  }, [stopGestureSound, stopReactionSound]);
 
   useEffect(() => {
     let alive = true;
@@ -73,6 +109,17 @@ export function useRobotState(music: MusicApi) {
       }
       if (hasEvent) lastGestureEvent.current = s.gesture_event;
       lastGesture.current = label;
+
+      // Emotion cue: play a reaction sound when the reaction changes, skipping
+      // idle (ambient) and any moment a gesture effect is already sounding so
+      // the two channels never double up.
+      const reactionChanged = s.reaction !== lastReaction.current;
+      const gestureActive = !!sfxRef.current && !sfxRef.current.ended;
+      if (reactionChanged && s.reaction && s.reaction !== "idle" && !gestureActive) {
+        playReactionSound(s.reaction);
+      }
+      lastReaction.current = s.reaction;
+
       setState(s);
       applyServerState(s.music);
     };
@@ -81,8 +128,9 @@ export function useRobotState(music: MusicApi) {
     return () => {
       alive = false;
       window.clearInterval(id);
+      stopReactionSound();
     };
-  }, [applyServerState, playGestureSound]);
+  }, [applyServerState, playGestureSound, playReactionSound, stopReactionSound]);
 
   return { state, gestures, stopGestureSound };
 }

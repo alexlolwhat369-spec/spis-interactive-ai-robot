@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { postMusic, type MusicState, type VoiceResult } from "@/lib/api";
+import { registerAudio } from "@/lib/audio";
 
 export interface MusicUi {
   available: boolean;
@@ -65,6 +66,7 @@ export function useMusic(): MusicApi {
     const audio = new Audio();
     audio.preload = "none";
     audioRef.current = audio;
+    const unregister = registerAudio(audio, 1);
     const onPlay = () => sync();
     const onPause = () => sync();
     const onEnded = () => {
@@ -81,6 +83,7 @@ export function useMusic(): MusicApi {
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
       audio.removeEventListener("ended", onEnded);
+      unregister();
       audioRef.current = null;
     };
   }, [sync]);
