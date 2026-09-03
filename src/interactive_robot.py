@@ -78,12 +78,24 @@ class VoiceState:
 
 
 class GestureFeedback:
-    """Keep special visual reactions visible long enough to be noticed."""
+    """Keep sound-backed reactions visible for exactly the effect duration."""
 
-    def __init__(self, heart_hold_seconds: float = 1.5, mohan_hold_seconds: float = 2.0) -> None:
-        self.hold_seconds = {"heart": heart_hold_seconds, "mohan": mohan_hold_seconds}
+    def __init__(
+        self,
+        heart_hold_seconds: float = 1.5,
+        mohan_hold_seconds: float = 2.0,
+        hold_seconds: dict[str, float] | None = None,
+    ) -> None:
+        self.hold_seconds = (
+            hold_seconds
+            if hold_seconds is not None
+            else {"heart": heart_hold_seconds, "mohan": mohan_hold_seconds}
+        )
         self._held_until = 0.0
         self._held_activity: VoiceActivity | None = None
+        self._held_label: str | None = None
+        self._completed_label: str | None = None
+        self._previous_label = "none"
 
     def choose(
         self,
@@ -95,14 +107,27 @@ class GestureFeedback:
         if gestures_locked(voice_activity):
             self._held_until = 0.0
             self._held_activity = None
+            self._held_label = None
+            self._completed_label = None
+            self._previous_label = "none"
             return voice_activity
-        if label in self.hold_seconds:
-            self._held_until = now + self.hold_seconds[label]
-            self._held_activity = VoiceActivity(gesture_command.reaction, gesture_command.reply)
-            return self._held_activity
+        is_new_activation = label not in {"none", "unknown"} and label != self._previous_label
+        self._previous_label = label
+        if is_new_activation and label in self.hold_seconds:
+            same_effect_is_active = self._held_label == label and now < self._held_until
+            if not same_effect_is_active:
+                self._held_until = now + self.hold_seconds[label]
+                self._held_activity = VoiceActivity(gesture_command.reaction, gesture_command.reply)
+                self._held_label = label
+                self._completed_label = None
         if now < self._held_until and self._held_activity is not None:
             return self._held_activity
+        if self._held_label is not None:
+            self._completed_label = self._held_label
         self._held_activity = None
+        self._held_label = None
+        if label == self._completed_label and label in self.hold_seconds:
+            return voice_activity
         if label != "none":
             return VoiceActivity(gesture_command.reaction, gesture_command.reply)
         return voice_activity
@@ -125,6 +150,10 @@ class GestureSoundFeedback:
                 print(f"Sound effect unavailable: {path}")
         self._previous_label = label
         return triggered
+
+    def stop(self) -> None:
+        self.player.stop()
+        self._previous_label = "none"
 
 
 class VoiceWorker:
@@ -352,6 +381,36 @@ def main() -> None:
         help="Optional text-only JSONL turn log. Microphone audio and camera images are never written.",
     )
     parser.add_argument(
+        "--peace-sound",
+        type=Path,
+        default=ROOT / "assets" / "sounds" / "peace_reaction.wav",
+        help="Local sound effect played once when the peace gesture activates.",
+    )
+    parser.add_argument(
+        "--ok-sound",
+        type=Path,
+        default=ROOT / "assets" / "sounds" / "ok_reaction.mp3",
+        help="Local sound effect played once when the OK gesture activates.",
+    )
+    parser.add_argument(
+        "--angry-sound",
+        type=Path,
+        default=ROOT / "assets" / "sounds" / "angry_reaction.mp3",
+        help="Local sound effect played once when the rude gesture activates.",
+    )
+    parser.add_argument(
+        "--thumbs-up-sound",
+        type=Path,
+        default=ROOT / "assets" / "sounds" / "thumbs_up_reaction.mp3",
+        help="Local sound effect played once when the thumbs-up gesture activates.",
+    )
+    parser.add_argument(
+        "--heart-sound",
+        type=Path,
+        default=ROOT / "assets" / "sounds" / "heart_reaction.wav",
+        help="Local sound effect played once when the heart gesture activates.",
+    )
+    parser.add_argument(
         "--mohan-sound",
         type=Path,
         default=ROOT / "assets" / "sounds" / "mohan_whistle.mp3",
@@ -386,8 +445,26 @@ def main() -> None:
 
     gate = GestureGate(distance_limit=gesture_model.distance_limit)
     controller = RobotController()
-    gesture_feedback = GestureFeedback()
-    gesture_sounds = GestureSoundFeedback(SoundEffectPlayer(), {"mohan": args.mohan_sound})
+    sound_player = SoundEffectPlayer()
+    gesture_sound_paths = {
+        "peace": args.peace_sound,
+        "thumbs_up": args.thumbs_up_sound,
+        "heart": args.heart_sound,
+        "ok": args.ok_sound,
+        "middle_finger": args.angry_sound,
+        "mohan": args.mohan_sound,
+    }
+    gesture_feedback = GestureFeedback(
+        hold_seconds={
+            label: duration
+            for label, path in gesture_sound_paths.items()
+            if (duration := sound_player.duration_seconds(path)) > 0.0
+        }
+    )
+    gesture_sounds = GestureSoundFeedback(
+        sound_player,
+        gesture_sound_paths,
+    )
     space_key = SpaceKey()
     space_was_down = False
     previous_face: np.ndarray | None = None
@@ -438,6 +515,7 @@ def main() -> None:
             if gestures_locked(voice_activity, voice.busy):
                 if not gestures_were_locked:
                     gate.suspend()
+                    gesture_sounds.stop()
                 gestures_were_locked = True
                 label = "none"
             else:

@@ -743,7 +743,6 @@
     </div>
 
     <p class="foot">On-device pipeline — camera, speech, and music stay on this machine. No images or audio are stored.</p>
-    <audio id="sfx" preload="auto"></audio>
   </div>
 
   <script>
@@ -755,8 +754,32 @@
       heart: "ic-heart", ok: "ic-ok", middle_finger: "ic-alert", mohan: "ic-mohan",
     };
     const GESTURE_SOUND = {};   // label -> stream url, filled from /gestures
-    const sfxAudio = document.getElementById("sfx");
-    let lastGesture = null;     // edge-detect so a held gesture plays its sound once
+    let activeSfx = null;
+    let activeSfxUrl = null;
+    let lastGesture = null;       // fallback for servers without gesture_event
+    let lastGestureEvent = null;  // durable backend activation id
+
+    function retireSfx(audio) {
+      if (!audio || audio !== activeSfx) return;
+      activeSfx = null;
+      activeSfxUrl = null;
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+    }
+
+    function playGestureSound(url) {
+      if (activeSfx && !activeSfx.paused && !activeSfx.ended && activeSfxUrl === url) return;
+      if (activeSfx) retireSfx(activeSfx);
+      const audio = new Audio(url);
+      audio.preload = "auto";
+      audio.volume = 0.8;
+      activeSfx = audio;
+      activeSfxUrl = url;
+      audio.addEventListener("ended", () => retireSfx(audio), { once: true });
+      audio.addEventListener("error", () => retireSfx(audio), { once: true });
+      audio.play().catch(() => retireSfx(audio));
+    }
 
     // ---- Gesture reference (built once from the backend) ----
     async function loadGestures() {
@@ -931,12 +954,15 @@
         if (!res.ok) return;
         const s = await res.json();
         const gLabel = s.gesture && s.gesture !== "none" ? s.gesture : null;
-        // Play a mapped gesture sound once when the gesture first appears.
-        if (gLabel && gLabel !== lastGesture && GESTURE_SOUND[gLabel]) {
-          sfxAudio.src = GESTURE_SOUND[gLabel];
-          sfxAudio.currentTime = 0;
-          sfxAudio.play().catch(() => {});
+        const hasEventId = Number.isInteger(s.gesture_event);
+        const isNewGesture = hasEventId
+          ? s.gesture_event !== lastGestureEvent
+          : gLabel !== lastGesture;
+        // Keep one effect at a time; a different reaction replaces the old one.
+        if (gLabel && isNewGesture && GESTURE_SOUND[gLabel]) {
+          playGestureSound(GESTURE_SOUND[gLabel]);
         }
+        if (hasEventId) lastGestureEvent = s.gesture_event;
         lastGesture = gLabel;
         $("gesture").textContent = (gLabel || "—").replace(/_/g, " ");
         $("reaction").textContent = s.reaction ?? "—";
@@ -1010,6 +1036,7 @@
 
     async function startRecording() {
       if (recording || busy) return;
+      if (activeSfx) retireSfx(activeSfx);
       recording = true;
       chunks = [];
       recordingPeak = 0;

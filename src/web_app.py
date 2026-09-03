@@ -28,7 +28,7 @@ try:
     from .gesture_gate import GestureGate
     from .gesture_model import GestureKNN, Prediction
     from .hand_tracker import HandTracker, draw_hands
-    from .music import MusicSelector, WebMusicController
+    from .music import MusicSelector, SoundEffectPlayer, WebMusicController
     from .robot_face import render_face
     from .robot_state import Reaction, RobotController
     from .voice_engine import VoiceEngine
@@ -39,7 +39,7 @@ except ImportError:  # Supports direct execution: python src/web_app.py
     from gesture_gate import GestureGate
     from gesture_model import GestureKNN, Prediction
     from hand_tracker import HandTracker, draw_hands
-    from music import MusicSelector, WebMusicController
+    from music import MusicSelector, SoundEffectPlayer, WebMusicController
     from robot_face import render_face
     from robot_state import Reaction, RobotController
     from voice_engine import VoiceEngine
@@ -50,6 +50,11 @@ GESTURE_MODEL_PATH = ROOT / "model" / "gesture_knn.npz"
 DEFAULT_VOSK_MODEL = ROOT / "models" / "vosk-model-small-en-us-0.15"
 DEFAULT_PIPER_VOICE = ROOT / "models" / "voices" / "en_US-lessac-medium.onnx"
 PLAYLIST_PATH = ROOT / "assets" / "music" / "playlist.json"
+DEFAULT_THUMBS_UP_SOUND = ROOT / "assets" / "sounds" / "thumbs_up_reaction.mp3"
+DEFAULT_HEART_SOUND = ROOT / "assets" / "sounds" / "heart_reaction.wav"
+DEFAULT_OK_SOUND = ROOT / "assets" / "sounds" / "ok_reaction.mp3"
+DEFAULT_PEACE_SOUND = ROOT / "assets" / "sounds" / "peace_reaction.wav"
+DEFAULT_ANGRY_SOUND = ROOT / "assets" / "sounds" / "angry_reaction.mp3"
 DEFAULT_MOHAN_SOUND = ROOT / "assets" / "sounds" / "mohan_whistle.mp3"
 WEB_DIR = ROOT / "web"
 
@@ -84,11 +89,20 @@ class RobotWebRuntime:
         self._face_jpeg: bytes | None = None
         self._state = {
             "gesture": "none",
+            "gesture_event": 0,
             "reaction": "idle",
             "confidence": 0.0,
             "camera_backend": "starting",
         }
         self._sequence = 0
+        self._gesture_event_id = 0
+        self._gesture_event_label = "none"
+        self._gesture_sound_durations: dict[str, float] = {}
+        self._effect_until = 0.0
+        self._effect_activity: tuple[Reaction, str] | None = None
+        self._effect_label: str | None = None
+        self._effect_completed_label: str | None = None
+        self._effect_consumed_event = 0
 
         # Voice temporarily drives the face (listening/thinking/speaking) even
         # when no gesture is present. Stored as (reaction, subtitle, expiry).
@@ -111,8 +125,16 @@ class RobotWebRuntime:
     def set_music_title_source(self, source: Callable[[], str | None]) -> None:
         self._music_title = source
 
+    def set_gesture_sound_durations(self, durations: dict[str, float]) -> None:
+        self._gesture_sound_durations = {
+            label: float(duration)
+            for label, duration in durations.items()
+            if duration > 0.0
+        }
+
     def set_override(self, reaction: Reaction, subtitle: str, ttl: float) -> None:
         with self._condition:
+            self._cancel_gesture_effect()
             self._override = (reaction, subtitle, time.monotonic() + ttl)
 
     def clear_override(self) -> None:
@@ -140,6 +162,52 @@ class RobotWebRuntime:
             self._sequence += 1
             self._condition.notify_all()
 
+    def _observe_gesture_event(self, label: str) -> int:
+        """Return a durable activation id so browser polling cannot miss a release."""
+        if label == "none":
+            self._gesture_event_label = "none"
+        elif label != "unknown" and label != self._gesture_event_label:
+            self._gesture_event_id += 1
+            self._gesture_event_label = label
+        return self._gesture_event_id
+
+    def _cancel_gesture_effect(self) -> None:
+        if self._effect_label is not None:
+            self._effect_completed_label = self._effect_label
+        self._effect_until = 0.0
+        self._effect_activity = None
+        self._effect_label = None
+        self._effect_consumed_event = max(self._effect_consumed_event, self._gesture_event_id)
+
+    def _timed_gesture_activity(
+        self,
+        label: str,
+        event_id: int,
+        reaction: Reaction,
+        subtitle: str,
+        now: float,
+    ) -> tuple[Reaction, str]:
+        duration = self._gesture_sound_durations.get(label, 0.0)
+        active = self._effect_activity is not None and now < self._effect_until
+        if duration > 0.0 and event_id > self._effect_consumed_event:
+            self._effect_consumed_event = event_id
+            if not (active and label == self._effect_label):
+                self._effect_until = now + duration
+                self._effect_activity = (reaction, subtitle)
+                self._effect_label = label
+                self._effect_completed_label = None
+                active = True
+        if active and self._effect_activity is not None:
+            return self._effect_activity
+        if self._effect_label is not None:
+            self._effect_completed_label = self._effect_label
+        self._effect_until = 0.0
+        self._effect_activity = None
+        self._effect_label = None
+        if duration > 0.0 and label == self._effect_completed_label:
+            return Reaction.IDLE, ""
+        return reaction, subtitle
+
     def _run(self) -> None:
         camera, first_frame, camera_backend = self._open_camera()
         self._tracker = HandTracker(HAND_MODEL_PATH)
@@ -162,8 +230,17 @@ class RobotWebRuntime:
                 else:
                     prediction = self._model.predict(landmarks_to_features(hand_samples))
                 label = self._gate.update(prediction, len(hand_samples))
+                gesture_event = self._observe_gesture_event(label)
                 command = self._controller.from_gesture(label)
                 reaction = command.reaction
+                now = time.monotonic()
+                gesture_reaction, gesture_subtitle = self._timed_gesture_activity(
+                    label,
+                    gesture_event,
+                    reaction,
+                    command.reply,
+                    now,
+                )
 
                 draw_hands(frame, hand_samples)
                 cv2.putText(frame, f"Gesture: {label}", (20, 38), cv2.FONT_HERSHEY_SIMPLEX, 0.85, (255, 220, 0), 2)
@@ -185,13 +262,13 @@ class RobotWebRuntime:
                 if override is not None:
                     face_reaction, face_subtitle = override
                 else:
-                    face_reaction, face_subtitle = reaction, command.reply
+                    face_reaction, face_subtitle = gesture_reaction, gesture_subtitle
                 face = render_face(
                     face_reaction,
                     face_subtitle,
                     FACE_WIDTH,
                     FACE_HEIGHT,
-                    time_seconds=time.monotonic(),
+                    time_seconds=now,
                     music_title=self._music_title(),
                 )
 
@@ -204,7 +281,8 @@ class RobotWebRuntime:
                     face_jpeg,
                     {
                         "gesture": label,
-                        "reaction": str(reaction),
+                        "gesture_event": gesture_event,
+                        "reaction": str(face_reaction),
                         "confidence": round(float(prediction.confidence), 2) if label not in {"none", "unknown"} else 0.0,
                         "camera_backend": camera_backend,
                     },
@@ -379,6 +457,36 @@ def main() -> None:
     parser.add_argument("--vosk-model", type=Path, default=DEFAULT_VOSK_MODEL)
     parser.add_argument("--piper-voice", type=Path, default=DEFAULT_PIPER_VOICE)
     parser.add_argument(
+        "--thumbs-up-sound",
+        type=Path,
+        default=DEFAULT_THUMBS_UP_SOUND,
+        help="Sound streamed to the browser when the thumbs-up gesture activates.",
+    )
+    parser.add_argument(
+        "--heart-sound",
+        type=Path,
+        default=DEFAULT_HEART_SOUND,
+        help="Sound streamed to the browser when the heart gesture activates.",
+    )
+    parser.add_argument(
+        "--peace-sound",
+        type=Path,
+        default=DEFAULT_PEACE_SOUND,
+        help="Sound streamed to the browser when the peace gesture activates.",
+    )
+    parser.add_argument(
+        "--ok-sound",
+        type=Path,
+        default=DEFAULT_OK_SOUND,
+        help="Sound streamed to the browser when the OK gesture activates.",
+    )
+    parser.add_argument(
+        "--angry-sound",
+        type=Path,
+        default=DEFAULT_ANGRY_SOUND,
+        help="Sound streamed to the browser when the rude gesture activates.",
+    )
+    parser.add_argument(
         "--mohan-sound",
         type=Path,
         default=DEFAULT_MOHAN_SOUND,
@@ -413,13 +521,29 @@ def main() -> None:
     else:
         print(f"Voice disabled: {engine.reason}")
 
-    sounds = {"mohan": args.mohan_sound}
-    if args.mohan_sound.is_file():
-        print(f"Mohan gesture sound: {args.mohan_sound.name} (browser).")
-    else:
-        print(f"Mohan gesture sound: not installed ({args.mohan_sound}).")
+    sounds = {
+        "peace": args.peace_sound,
+        "thumbs_up": args.thumbs_up_sound,
+        "heart": args.heart_sound,
+        "ok": args.ok_sound,
+        "middle_finger": args.angry_sound,
+        "mohan": args.mohan_sound,
+    }
+    sound_probe = SoundEffectPlayer()
+    sound_durations = {
+        label: duration
+        for label, path in sounds.items()
+        if (duration := sound_probe.duration_seconds(path)) > 0.0
+    }
+    for label, path in sounds.items():
+        if path.is_file():
+            duration = sound_durations.get(label, 0.0)
+            print(f"{label.title()} gesture sound: {path.name} ({duration:.2f}s, browser).")
+        else:
+            print(f"{label.title()} gesture sound: not installed ({path}).")
 
     runtime = RobotWebRuntime(args.camera)
+    runtime.set_gesture_sound_durations(sound_durations)
     runtime.set_music_title_source(lambda: music.state()["title"])
     runtime.start()
     app = create_app(runtime, engine, music, diagnostics, sounds)

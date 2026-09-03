@@ -166,17 +166,37 @@ class WebEndpointTests(unittest.TestCase):
     def test_gesture_sound_served_when_file_present(self) -> None:
         with TemporaryDirectory() as directory:
             whistle = Path(directory) / "mohan.mp3"
+            heart = Path(directory) / "heart.wav"
+            peace = Path(directory) / "peace.wav"
+            ok_sound = Path(directory) / "ok.mp3"
+            thumbs_up = Path(directory) / "thumbs-up.mp3"
+            angry = Path(directory) / "angry.mp3"
             whistle.write_bytes(b"ID3fake-whistle")
-            client, _, _, _ = _client(Path(directory), sounds={"mohan": whistle})
-            mohan = next(
-                gesture for gesture in client.get("/gestures").get_json()["gestures"]
-                if gesture["label"] == "mohan"
-            )
-            self.assertEqual(mohan["sound"], "/sound/mohan")
-            served = client.get("/sound/mohan")
-            self.assertEqual(served.status_code, 200)
-            self.assertTrue(served.data.startswith(b"ID3"))
-            served.close()
+            heart.write_bytes(b"RIFFfake-heart")
+            peace.write_bytes(b"RIFFfake-peace")
+            ok_sound.write_bytes(b"ID3fake-ok")
+            thumbs_up.write_bytes(b"ID3fake-thumbs-up")
+            angry.write_bytes(b"ID3fake-angry")
+            sounds = {
+                "peace": peace,
+                "thumbs_up": thumbs_up,
+                "heart": heart,
+                "ok": ok_sound,
+                "middle_finger": angry,
+                "mohan": whistle,
+            }
+            client, _, _, _ = _client(Path(directory), sounds=sounds)
+            gestures = {
+                gesture["label"]: gesture
+                for gesture in client.get("/gestures").get_json()["gestures"]
+            }
+            for label in sounds:
+                self.assertEqual(gestures[label]["sound"], f"/sound/{label}")
+                served = client.get(f"/sound/{label}")
+                self.assertEqual(served.status_code, 200)
+                expected_header = b"RIFF" if label in {"heart", "peace"} else b"ID3"
+                self.assertTrue(served.data.startswith(expected_header))
+                served.close()
             self.assertEqual(client.get("/sound/unknown").status_code, 404)
 
     def test_play_returns_stream_url_and_track_serves_bytes(self) -> None:
@@ -207,6 +227,61 @@ class CameraRuntimeTests(unittest.TestCase):
 
         self.assertEqual(result, (camera, first_frame, "DirectShow"))
         opener.assert_called_once_with(2)
+
+    def test_gesture_events_survive_browser_polling_gaps(self) -> None:
+        runtime = RobotWebRuntime.__new__(RobotWebRuntime)
+        runtime._gesture_event_id = 0
+        runtime._gesture_event_label = "none"
+
+        self.assertEqual(runtime._observe_gesture_event("heart"), 1)
+        self.assertEqual(runtime._observe_gesture_event("heart"), 1)
+        self.assertEqual(runtime._observe_gesture_event("unknown"), 1)
+        self.assertEqual(runtime._observe_gesture_event("heart"), 1)
+        self.assertEqual(runtime._observe_gesture_event("none"), 1)
+        self.assertEqual(runtime._observe_gesture_event("heart"), 2)
+        self.assertEqual(runtime._observe_gesture_event("ok"), 3)
+
+    def test_web_reaction_uses_the_sound_duration(self) -> None:
+        runtime = RobotWebRuntime.__new__(RobotWebRuntime)
+        runtime._gesture_sound_durations = {"heart": 2.0, "ok": 1.0}
+        runtime._effect_until = 0.0
+        runtime._effect_activity = None
+        runtime._effect_label = None
+        runtime._effect_completed_label = None
+        runtime._effect_consumed_event = 0
+
+        started = runtime._timed_gesture_activity(
+            "heart", 1, Reaction.HEART, "Love", now=10.0
+        )
+        held_after_release = runtime._timed_gesture_activity(
+            "none", 1, Reaction.IDLE, "", now=11.9
+        )
+        ended_while_held = runtime._timed_gesture_activity(
+            "heart", 1, Reaction.HEART, "Love", now=12.1
+        )
+        still_ended = runtime._timed_gesture_activity(
+            "heart", 1, Reaction.HEART, "Love", now=12.5
+        )
+        replacement = runtime._timed_gesture_activity(
+            "ok", 2, Reaction.OK, "Perfect", now=12.6
+        )
+
+        self.assertEqual(started, (Reaction.HEART, "Love"))
+        self.assertEqual(held_after_release, (Reaction.HEART, "Love"))
+        self.assertEqual(ended_while_held, (Reaction.IDLE, ""))
+        self.assertEqual(still_ended, (Reaction.IDLE, ""))
+        self.assertEqual(replacement, (Reaction.OK, "Perfect"))
+
+    def test_browser_keeps_only_one_sound_effect_active(self) -> None:
+        html = (Path(__file__).parents[1] / "web" / "index.html").read_text(encoding="utf-8")
+
+        self.assertIn("function playGestureSound(url)", html)
+        self.assertIn("const audio = new Audio(url)", html)
+        self.assertIn("if (activeSfx) retireSfx(activeSfx)", html)
+        self.assertIn("activeSfxUrl === url", html)
+        self.assertIn("s.gesture_event !== lastGestureEvent", html)
+        self.assertNotIn("MAX_CONCURRENT_SFX", html)
+        self.assertNotIn("sfxAudio.src =", html)
 
 
 if __name__ == "__main__":

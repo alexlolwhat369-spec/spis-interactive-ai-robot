@@ -1,0 +1,58 @@
+{
+  "effects": [
+    {
+      "file": "01_ok_confirm.wav",
+      "seconds": 0.85,
+      "sample_rate": 44100,
+      "channels": 2
+    },
+    {
+      "file": "02_angry_alert.wav",
+      "seconds": 1.0,
+      "sample_rate": 44100,
+      "channels": 2
+    },
+    {
+      "file": "03_heart_magic.wav",
+      "seconds": 1.55,
+      "sample_rate": 44100,
+      "channels": 2
+    },
+    {
+      "file": "04_proud_success.wav",
+      "seconds": 1.65,
+      "sample_rate": 44100,
+      "channels": 2
+    },
+    {
+      "file": "05_curious_question.wav",
+      "seconds": 1.05,
+      "sample_rate": 44100,
+      "channels": 2
+    },
+    {
+      "file": "06_game_start.wav",
+      "seconds": 1.55,
+      "sample_rate": 44100,
+      "channels": 2
+    },
+    {
+      "file": "07_incorrect_soft.wav",
+      "seconds": 0.95,
+      "sample_rate": 44100,
+      "channels": 2
+    },
+    {
+      "file": "08_mohan_special.wav",
+      "seconds": 1.55,
+      "sample_rate": 44100,
+      "channels": 2
+    },
+    {
+      "file": "09_robot_transition.wav",
+      "seconds": 0.78,
+      "sample_rate": 44100,
+      "channels": 2
+    }
+  ]
+}

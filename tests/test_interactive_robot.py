@@ -59,6 +59,24 @@ class InteractiveRobotTests(unittest.TestCase):
         self.assertEqual(still_shown.reaction, Reaction.HEART)
         self.assertEqual(released.reaction, Reaction.IDLE)
 
+    def test_sound_backed_reaction_ends_even_when_gesture_remains_held(self) -> None:
+        feedback = GestureFeedback(hold_seconds={"heart": 1.0})
+        command = RobotController().from_gesture("heart")
+        fallback = VoiceActivity(Reaction.IDLE)
+
+        started = feedback.choose("heart", command, fallback, now=10.0)
+        active = feedback.choose("heart", command, fallback, now=10.9)
+        ended = feedback.choose("heart", command, fallback, now=11.1)
+        still_ended = feedback.choose("heart", command, fallback, now=11.5)
+        feedback.choose("none", RobotCommand("", Reaction.IDLE), fallback, now=11.6)
+        restarted = feedback.choose("heart", command, fallback, now=12.0)
+
+        self.assertEqual(started.reaction, Reaction.HEART)
+        self.assertEqual(active.reaction, Reaction.HEART)
+        self.assertEqual(ended.reaction, Reaction.IDLE)
+        self.assertEqual(still_ended.reaction, Reaction.IDLE)
+        self.assertEqual(restarted.reaction, Reaction.HEART)
+
     def test_conversation_activity_blocks_gesture_feedback(self) -> None:
         feedback = GestureFeedback(heart_hold_seconds=1.5)
         command = RobotController().from_gesture("heart")

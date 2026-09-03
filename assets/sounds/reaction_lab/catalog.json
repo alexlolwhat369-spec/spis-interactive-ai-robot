@@ -1,0 +1,679 @@
+{
+  "status": "audition_only",
+  "source_repository": "https://github.com/lavenderdotpet/CC0-Public-Domain-Sounds",
+  "license": "CC0-1.0",
+  "mohan": "excluded_existing_sound_preserved",
+  "reactions": {
+    "idle": {
+      "references": [
+        {
+          "path": "80-CC0-creature-SFX/breath.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/breath.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/burble_01.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/burble_01.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/burble_02.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/burble_02.ogg"
+        },
+        {
+          "path": "kenney_digitalaudio/Audio/lowRandom.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_digitalaudio/Audio/lowRandom.ogg"
+        },
+        {
+          "path": "kenney_digitalaudio/Audio/tone1.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_digitalaudio/Audio/tone1.ogg"
+        },
+        {
+          "path": "kenney_digitalaudio/Audio/lowThreeTone.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_digitalaudio/Audio/lowThreeTone.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/select_003.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/select_003.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/switch_001.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/switch_001.ogg"
+        },
+        {
+          "path": "100-CC0-SFX/machine_01.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/100-CC0-SFX/machine_01.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/alien_01.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/alien_01.ogg"
+        }
+      ],
+      "variants": [
+        {
+          "label": "A",
+          "title": "Soft breath",
+          "file": "idle/variants/idle_A_soft_breath.wav"
+        },
+        {
+          "label": "B",
+          "title": "Quiet computer",
+          "file": "idle/variants/idle_B_quiet_computer.wav"
+        },
+        {
+          "label": "C",
+          "title": "Gentle motion",
+          "file": "idle/variants/idle_C_gentle_motion.wav"
+        }
+      ]
+    },
+    "listening": {
+      "references": [
+        {
+          "path": "kenney_interfacesounds/Audio/question_001.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/question_001.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/question_002.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/question_002.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/question_003.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/question_003.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/question_004.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/question_004.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/select_001.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/select_001.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/select_002.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/select_002.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/select_003.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/select_003.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/open_001.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/open_001.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/open_002.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/open_002.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/tick_001.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/tick_001.ogg"
+        }
+      ],
+      "variants": [
+        {
+          "label": "A",
+          "title": "Attentive question",
+          "file": "listening/variants/listening_A_attentive_question.wav"
+        },
+        {
+          "label": "B",
+          "title": "Soft prompt",
+          "file": "listening/variants/listening_B_soft_prompt.wav"
+        },
+        {
+          "label": "C",
+          "title": "Friendly cue",
+          "file": "listening/variants/listening_C_friendly_cue.wav"
+        }
+      ]
+    },
+    "thinking": {
+      "references": [
+        {
+          "path": "kenney_interfacesounds/Audio/scratch_001.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/scratch_001.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/scratch_002.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/scratch_002.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/scratch_003.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/scratch_003.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/scratch_004.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/scratch_004.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/scratch_005.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/scratch_005.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/tick_001.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/tick_001.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/tick_002.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/tick_002.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/tick_004.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/tick_004.ogg"
+        },
+        {
+          "path": "100-CC0-SFX/machine_01.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/100-CC0-SFX/machine_01.ogg"
+        },
+        {
+          "path": "kenney_digitalaudio/Audio/lowRandom.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_digitalaudio/Audio/lowRandom.ogg"
+        }
+      ],
+      "variants": [
+        {
+          "label": "A",
+          "title": "Pondering",
+          "file": "thinking/variants/thinking_A_pondering.wav"
+        },
+        {
+          "label": "B",
+          "title": "Working it out",
+          "file": "thinking/variants/thinking_B_working_it_out.wav"
+        },
+        {
+          "label": "C",
+          "title": "Tiny processor",
+          "file": "thinking/variants/thinking_C_tiny_processor.wav"
+        }
+      ]
+    },
+    "speaking": {
+      "references": [
+        {
+          "path": "80-CC0-creature-SFX/alien_01.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/alien_01.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/alien_02.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/alien_02.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/alien_03.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/alien_03.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/alien_04.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/alien_04.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/alien_05.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/alien_05.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/alien_06.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/alien_06.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/burble_01.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/burble_01.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/burble_02.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/burble_02.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/ooh.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/ooh.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/cute_02.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/cute_02.ogg"
+        }
+      ],
+      "variants": [
+        {
+          "label": "A",
+          "title": "Robot syllables",
+          "file": "speaking/variants/speaking_A_robot_syllables.wav"
+        },
+        {
+          "label": "B",
+          "title": "Animated chatter",
+          "file": "speaking/variants/speaking_B_animated_chatter.wav"
+        },
+        {
+          "label": "C",
+          "title": "Friendly mumble",
+          "file": "speaking/variants/speaking_C_friendly_mumble.wav"
+        }
+      ]
+    },
+    "happy": {
+      "references": [
+        {
+          "path": "80-CC0-creature-SFX/cute_01.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/cute_01.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/cute_02.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/cute_02.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/cute_03.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/cute_03.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/cute_04.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/cute_04.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/cute_05.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/cute_05.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/cute_06.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/cute_06.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/cute_07.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/cute_07.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/cute_08.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/cute_08.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/cute_09.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/cute_09.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/cute_10.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/cute_10.ogg"
+        }
+      ],
+      "variants": [
+        {
+          "label": "A",
+          "title": "Bright delight",
+          "file": "happy/variants/happy_A_bright_delight.wav"
+        },
+        {
+          "label": "B",
+          "title": "Warm giggle",
+          "file": "happy/variants/happy_B_warm_giggle.wav"
+        },
+        {
+          "label": "C",
+          "title": "Playful joy",
+          "file": "happy/variants/happy_C_playful_joy.wav"
+        }
+      ]
+    },
+    "proud": {
+      "references": [
+        {
+          "path": "kenney_interfacesounds/Audio/confirmation_001.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/confirmation_001.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/confirmation_002.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/confirmation_002.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/confirmation_003.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/confirmation_003.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/confirmation_004.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/confirmation_004.ogg"
+        },
+        {
+          "path": "kenney_digitalaudio/Audio/powerUp1.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_digitalaudio/Audio/powerUp1.ogg"
+        },
+        {
+          "path": "kenney_digitalaudio/Audio/powerUp2.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_digitalaudio/Audio/powerUp2.ogg"
+        },
+        {
+          "path": "kenney_digitalaudio/Audio/powerUp3.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_digitalaudio/Audio/powerUp3.ogg"
+        },
+        {
+          "path": "kenney_digitalaudio/Audio/powerUp4.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_digitalaudio/Audio/powerUp4.ogg"
+        },
+        {
+          "path": "kenney_digitalaudio/Audio/powerUp5.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_digitalaudio/Audio/powerUp5.ogg"
+        },
+        {
+          "path": "kenney_digitalaudio/Audio/threeTone1.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_digitalaudio/Audio/threeTone1.ogg"
+        }
+      ],
+      "variants": [
+        {
+          "label": "A",
+          "title": "Achievement",
+          "file": "proud/variants/proud_A_achievement.wav"
+        },
+        {
+          "label": "B",
+          "title": "Confident rise",
+          "file": "proud/variants/proud_B_confident_rise.wav"
+        },
+        {
+          "label": "C",
+          "title": "Small victory",
+          "file": "proud/variants/proud_C_small_victory.wav"
+        }
+      ]
+    },
+    "confused": {
+      "references": [
+        {
+          "path": "kenney_interfacesounds/Audio/question_001.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/question_001.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/question_002.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/question_002.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/question_003.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/question_003.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/question_004.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/question_004.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/weird_01.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/weird_01.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/weird_02.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/weird_02.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/weird_03.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/weird_03.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/weird_04.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/weird_04.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/weird_05.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/weird_05.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/ooh.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/ooh.ogg"
+        }
+      ],
+      "variants": [
+        {
+          "label": "A",
+          "title": "Unsure question",
+          "file": "confused/variants/confused_A_unsure_question.wav"
+        },
+        {
+          "label": "B",
+          "title": "Puzzled mumble",
+          "file": "confused/variants/confused_B_puzzled_mumble.wav"
+        },
+        {
+          "label": "C",
+          "title": "What was that?",
+          "file": "confused/variants/confused_C_what_was_that.wav"
+        }
+      ]
+    },
+    "heart": {
+      "references": [
+        {
+          "path": "kenney_impactsounds/Audio/impactSoft_heavy_000.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_impactsounds/Audio/impactSoft_heavy_000.ogg"
+        },
+        {
+          "path": "kenney_impactsounds/Audio/impactSoft_heavy_001.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_impactsounds/Audio/impactSoft_heavy_001.ogg"
+        },
+        {
+          "path": "kenney_impactsounds/Audio/impactSoft_medium_000.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_impactsounds/Audio/impactSoft_medium_000.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/cute_01.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/cute_01.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/cute_03.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/cute_03.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/cute_05.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/cute_05.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/ooh.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/ooh.ogg"
+        },
+        {
+          "path": "80-CC0-RPG-SFX/item_gem_01.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-RPG-SFX/item_gem_01.ogg"
+        },
+        {
+          "path": "80-CC0-RPG-SFX/item_gem_03.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-RPG-SFX/item_gem_03.ogg"
+        },
+        {
+          "path": "80-CC0-RPG-SFX/spell_01.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-RPG-SFX/spell_01.ogg"
+        }
+      ],
+      "variants": [
+        {
+          "label": "A",
+          "title": "Heartbeat",
+          "file": "heart/variants/heart_A_heartbeat.wav"
+        },
+        {
+          "label": "B",
+          "title": "Affectionate chirp",
+          "file": "heart/variants/heart_B_affectionate_chirp.wav"
+        },
+        {
+          "label": "C",
+          "title": "Love sparkle",
+          "file": "heart/variants/heart_C_love_sparkle.wav"
+        }
+      ]
+    },
+    "annoyed": {
+      "references": [
+        {
+          "path": "kenney_interfacesounds/Audio/error_001.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/error_001.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/error_002.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/error_002.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/error_003.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/error_003.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/error_004.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/error_004.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/error_005.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/error_005.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/grunt_01.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/grunt_01.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/grunt_02.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/grunt_02.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/grunt_03.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/grunt_03.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/grunt_04.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/grunt_04.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/grunt_05.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/grunt_05.ogg"
+        }
+      ],
+      "variants": [
+        {
+          "label": "A",
+          "title": "Firm warning",
+          "file": "annoyed/variants/annoyed_A_firm_warning.wav"
+        },
+        {
+          "label": "B",
+          "title": "Short protest",
+          "file": "annoyed/variants/annoyed_B_short_protest.wav"
+        },
+        {
+          "label": "C",
+          "title": "Grumpy robot",
+          "file": "annoyed/variants/annoyed_C_grumpy_robot.wav"
+        }
+      ]
+    },
+    "curious": {
+      "references": [
+        {
+          "path": "kenney_interfacesounds/Audio/question_001.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/question_001.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/question_002.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/question_002.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/question_003.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/question_003.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/question_004.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/question_004.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/cute_04.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/cute_04.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/cute_06.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/cute_06.ogg"
+        },
+        {
+          "path": "80-CC0-creature-SFX/cute_08.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-creature-SFX/cute_08.ogg"
+        },
+        {
+          "path": "80-CC0-RPG-SFX/spell_02.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-RPG-SFX/spell_02.ogg"
+        },
+        {
+          "path": "80-CC0-RPG-SFX/item_gem_02.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/80-CC0-RPG-SFX/item_gem_02.ogg"
+        },
+        {
+          "path": "100-CC0-SFX/spring_01.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/100-CC0-SFX/spring_01.ogg"
+        }
+      ],
+      "variants": [
+        {
+          "label": "A",
+          "title": "Interested question",
+          "file": "curious/variants/curious_A_interested_question.wav"
+        },
+        {
+          "label": "B",
+          "title": "Surprised interest",
+          "file": "curious/variants/curious_B_surprised_interest.wav"
+        },
+        {
+          "label": "C",
+          "title": "Discovery",
+          "file": "curious/variants/curious_C_discovery.wav"
+        }
+      ]
+    },
+    "ok": {
+      "references": [
+        {
+          "path": "kenney_interfacesounds/Audio/confirmation_001.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/confirmation_001.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/confirmation_002.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/confirmation_002.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/confirmation_003.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/confirmation_003.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/confirmation_004.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/confirmation_004.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/select_001.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/select_001.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/select_002.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/select_002.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/select_003.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/select_003.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/select_004.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/select_004.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/select_005.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/select_005.ogg"
+        },
+        {
+          "path": "kenney_interfacesounds/Audio/select_006.ogg",
+          "url": "https://raw.githubusercontent.com/lavenderdotpet/CC0-Public-Domain-Sounds/main/kenney_interfacesounds/Audio/select_006.ogg"
+        }
+      ],
+      "variants": [
+        {
+          "label": "A",
+          "title": "Clear confirmation",
+          "file": "ok/variants/ok_A_clear_confirmation.wav"
+        },
+        {
+          "label": "B",
+          "title": "Gentle approval",
+          "file": "ok/variants/ok_B_gentle_approval.wav"
+        },
+        {
+          "label": "C",
+          "title": "Quick accepted",
+          "file": "ok/variants/ok_C_quick_accepted.wav"
+        }
+      ]
+    }
+  }
+}

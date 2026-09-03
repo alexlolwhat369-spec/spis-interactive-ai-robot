@@ -73,6 +73,8 @@ class SoundEffectPlayer:
         self.volume = max(0.0, min(1.0, volume))
         self._pygame: object | None = None
         self._sounds: dict[Path, object] = {}
+        self._channel: object | None = None
+        self._active_path: Path | None = None
         self._lock = threading.Lock()
 
     def _load_pygame(self) -> object | None:
@@ -89,6 +91,28 @@ class SoundEffectPlayer:
             self._pygame = None
         return self._pygame
 
+    def _sound_for(self, path: Path, pygame: object) -> object:
+        sound = self._sounds.get(path)
+        if sound is None:
+            sound = pygame.mixer.Sound(str(path))
+            sound.set_volume(self.volume)
+            self._sounds[path] = sound
+        return sound
+
+    def duration_seconds(self, path: Path) -> float:
+        """Read the decoded effect duration without starting playback."""
+        path = path.resolve()
+        if not path.is_file():
+            return 0.0
+        pygame = self._load_pygame()
+        if pygame is None:
+            return 0.0
+        try:
+            with self._lock:
+                return max(0.0, float(self._sound_for(path, pygame).get_length()))
+        except (RuntimeError, OSError, pygame.error):
+            return 0.0
+
     def play(self, path: Path) -> bool:
         path = path.resolve()
         if not path.is_file():
@@ -98,15 +122,25 @@ class SoundEffectPlayer:
             return False
         try:
             with self._lock:
-                sound = self._sounds.get(path)
-                if sound is None:
-                    sound = pygame.mixer.Sound(str(path))
-                    sound.set_volume(self.volume)
-                    self._sounds[path] = sound
-                channel = sound.play()
-            return channel is not None
+                sound = self._sound_for(path, pygame)
+                if self._channel is None:
+                    self._channel = pygame.mixer.Channel(0)
+                if self._channel.get_busy():
+                    if self._active_path == path:
+                        return True
+                    self._channel.stop()
+                self._channel.play(sound)
+                self._active_path = path
+            return True
         except (RuntimeError, OSError, pygame.error):
             return False
+
+    def stop(self) -> None:
+        """Stop the active effect without touching background music."""
+        with self._lock:
+            if self._channel is not None:
+                self._channel.stop()
+            self._active_path = None
 
 
 class MusicPlayer:

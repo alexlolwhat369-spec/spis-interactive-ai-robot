@@ -14,28 +14,45 @@ class MusicTests(unittest.TestCase):
             [Track("Calm", "calm", "calm.wav"), Track("Warm", "warm", "warm.wav"), Track("Celebrate", "celebration", "win.wav")]
         )
 
-    def test_sound_effect_uses_a_separate_cached_mixer_sound(self) -> None:
+    def test_sound_effect_does_not_restart_while_it_is_playing(self) -> None:
         class FakeSound:
             def __init__(self, path: str) -> None:
                 self.path = path
                 self.volume = 0.0
-                self.plays = 0
 
             def set_volume(self, volume: float) -> None:
                 self.volume = volume
 
-            def play(self) -> object:
-                self.plays += 1
-                return object()
+        class FakeChannel:
+            def __init__(self) -> None:
+                self.busy = False
+                self.played: list[FakeSound] = []
+                self.stops = 0
+
+            def get_busy(self) -> bool:
+                return self.busy
+
+            def play(self, sound: FakeSound) -> None:
+                self.played.append(sound)
+                self.busy = True
+
+            def stop(self) -> None:
+                self.stops += 1
+                self.busy = False
 
         class FakeMixer:
             def __init__(self) -> None:
                 self.created: list[FakeSound] = []
+                self.channel = FakeChannel()
 
             def Sound(self, path: str) -> FakeSound:
                 sound = FakeSound(path)
                 self.created.append(sound)
                 return sound
+
+            def Channel(self, index: int) -> FakeChannel:
+                self.channel_index = index
+                return self.channel
 
         class FakePygame:
             error = RuntimeError
@@ -52,10 +69,73 @@ class MusicTests(unittest.TestCase):
 
             self.assertTrue(player.play(path))
             self.assertTrue(player.play(path))
+            pygame.mixer.channel.busy = False
+            self.assertTrue(player.play(path))
 
         self.assertEqual(len(pygame.mixer.created), 1)
         self.assertEqual(pygame.mixer.created[0].volume, 0.65)
-        self.assertEqual(pygame.mixer.created[0].plays, 2)
+        self.assertEqual(len(pygame.mixer.channel.played), 2)
+        self.assertEqual(pygame.mixer.channel.stops, 0)
+        self.assertEqual(pygame.mixer.channel_index, 0)
+
+    def test_new_sound_effect_replaces_the_active_effect(self) -> None:
+        class FakeSound:
+            def __init__(self, path: str) -> None:
+                self.path = path
+
+            def set_volume(self, volume: float) -> None:
+                self.volume = volume
+
+        class FakeChannel:
+            def __init__(self) -> None:
+                self.busy = False
+                self.played: list[FakeSound] = []
+                self.stops = 0
+
+            def get_busy(self) -> bool:
+                return self.busy
+
+            def play(self, sound: FakeSound) -> None:
+                self.played.append(sound)
+                self.busy = True
+
+            def stop(self) -> None:
+                self.stops += 1
+                self.busy = False
+
+        class FakeMixer:
+            def __init__(self) -> None:
+                self.channel = FakeChannel()
+
+            def Sound(self, path: str) -> FakeSound:
+                return FakeSound(path)
+
+            def Channel(self, index: int) -> FakeChannel:
+                return self.channel
+
+        class FakePygame:
+            error = RuntimeError
+
+            def __init__(self) -> None:
+                self.mixer = FakeMixer()
+
+        with TemporaryDirectory() as directory:
+            first = Path(directory) / "first.mp3"
+            second = Path(directory) / "second.mp3"
+            first.write_bytes(b"first audio")
+            second.write_bytes(b"second audio")
+            pygame = FakePygame()
+            player = SoundEffectPlayer()
+            player._pygame = pygame
+
+            self.assertTrue(player.play(first))
+            self.assertTrue(player.play(second))
+
+        self.assertEqual(pygame.mixer.channel.stops, 1)
+        self.assertEqual(
+            [Path(sound.path).name for sound in pygame.mixer.channel.played],
+            ["first.mp3", "second.mp3"],
+        )
 
     def test_heart_uses_warm_track(self) -> None:
         self.assertEqual(self.selector.choose(gesture="heart").category, "warm")
