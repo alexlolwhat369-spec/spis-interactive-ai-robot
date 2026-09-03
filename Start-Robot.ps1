@@ -21,6 +21,25 @@ foreach ($Path in $Required) {
     }
 }
 
+# The React frontend must be built before Flask can serve it.
+$Npm = Get-Command npm.cmd -ErrorAction SilentlyContinue
+if (-not $Npm) {
+    throw "Node.js/npm is required to build the web interface. Install Node.js and reopen PowerShell."
+}
+Push-Location -LiteralPath (Join-Path $Root "web")
+try {
+    $InstalledLock = Get-Item "node_modules/.package-lock.json" -ErrorAction SilentlyContinue
+    $SourceLock = Get-Item "package-lock.json"
+    if (-not $InstalledLock -or $SourceLock.LastWriteTimeUtc -gt $InstalledLock.LastWriteTimeUtc) {
+        & $Npm.Source ci
+        if ($LASTEXITCODE -ne 0) { throw "Frontend dependency installation failed." }
+    }
+    & $Npm.Source run build
+    if ($LASTEXITCODE -ne 0) { throw "Frontend build failed." }
+} finally {
+    Pop-Location
+}
+
 $Url = "http://127.0.0.1:$Port"
 $Arguments = @(
     "src\web_app.py",

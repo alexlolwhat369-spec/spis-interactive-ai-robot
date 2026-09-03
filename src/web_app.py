@@ -57,6 +57,7 @@ DEFAULT_PEACE_SOUND = ROOT / "assets" / "sounds" / "peace_reaction.wav"
 DEFAULT_ANGRY_SOUND = ROOT / "assets" / "sounds" / "angry_reaction.mp3"
 DEFAULT_MOHAN_SOUND = ROOT / "assets" / "sounds" / "mohan_whistle.mp3"
 WEB_DIR = ROOT / "web"
+DIST_DIR = WEB_DIR / "dist"  # Vite build output (React + shadcn/ui UI)
 
 # Gestures the reference card shows, in legend order. Replies/reactions are read
 # live from RobotController so the card can never drift from the backend mapping.
@@ -345,7 +346,17 @@ def create_app(
 
     @app.route("/")
     def index() -> Response:
-        return send_from_directory(WEB_DIR, "index.html")
+        if not (DIST_DIR / "index.html").is_file():
+            return Response(
+                "Frontend not built. Run: cd web && npm install && npm run build",
+                status=503,
+                mimetype="text/plain",
+            )
+        return send_from_directory(DIST_DIR, "index.html")
+
+    @app.route("/assets/<path:filename>")
+    def assets(filename: str) -> Response:
+        return send_from_directory(DIST_DIR / "assets", filename)
 
     @app.route("/camera.mjpg")
     def camera_feed() -> Response:
@@ -408,7 +419,9 @@ def create_app(
         path = music.resolve_path(track) if track is not None else None
         if path is None:
             abort(404)
-        return send_file(path, mimetype="audio/mpeg", conditional=True)
+        mime = "audio/wav" if path.suffix.lower() == ".wav" else "audio/mpeg"
+        # Absolute path so send_file never resolves it against the Flask app root.
+        return send_file(path.resolve(), mimetype=mime, conditional=True)
 
     @app.route("/voice/available")
     def voice_available() -> Response:

@@ -25,6 +25,32 @@ fi
 # shellcheck disable=SC1091
 source "$VENV/bin/activate"
 
+# Flask serves the built React UI from web/dist. Rebuild only when the sources
+# are newer than the last build (or the build is missing).
+WEB="$ROOT/web"
+DIST_INDEX="$WEB/dist/index.html"
+WATCH=("$WEB/src" "$WEB/index.html" "$WEB/package.json" "$WEB/vite.config.ts" "$WEB/tsconfig.json")
+
+need_build=0
+if [ ! -f "$DIST_INDEX" ]; then
+  need_build=1
+elif [ -n "$(find "${WATCH[@]}" -newer "$DIST_INDEX" -print -quit 2>/dev/null)" ]; then
+  need_build=1
+fi
+
+if [ "$need_build" -eq 1 ]; then
+  if command -v npm >/dev/null 2>&1; then
+    [ -f "$DIST_INDEX" ] && echo "==> Rebuilding the web UI (sources changed)" || echo "==> Building the web UI (first run)"
+    ( cd "$WEB" && { [ -d node_modules ] || npm install; } && npm run build )
+  elif [ ! -f "$DIST_INDEX" ]; then
+    echo "ERROR: web/dist is missing and npm is not installed." >&2
+    echo "Install Node.js 18+, then run:  cd web && npm install && npm run build" >&2
+    exit 1
+  else
+    echo "WARNING: npm not found — serving existing web/dist, which may be stale." >&2
+  fi
+fi
+
 # Let the user override the port (used only for the browser-open convenience).
 for ((i = 1; i <= $#; i++)); do
   if [ "${!i}" = "--port" ]; then

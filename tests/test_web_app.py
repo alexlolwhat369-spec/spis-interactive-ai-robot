@@ -96,6 +96,29 @@ class GestureCatalogTests(unittest.TestCase):
 
 
 class WebEndpointTests(unittest.TestCase):
+    def test_frontend_build_is_served_with_assets(self) -> None:
+        with TemporaryDirectory() as directory:
+            dist = Path(directory)
+            (dist / "assets").mkdir()
+            (dist / "index.html").write_text('<div id="root"></div>', encoding="utf-8")
+            (dist / "assets" / "app.js").write_text("console.log('robot');", encoding="utf-8")
+            with patch("src.web_app.DIST_DIR", dist):
+                client, _, _, _ = _client(dist)
+                with client.get("/") as response:
+                    self.assertEqual(response.status_code, 200)
+                    self.assertIn(b'id="root"', response.data)
+                with client.get("/assets/app.js") as response:
+                    self.assertEqual(response.status_code, 200)
+                    self.assertIn(b"robot", response.data)
+                self.assertEqual(client.get("/assets/missing.js").status_code, 404)
+
+    def test_missing_frontend_build_returns_actionable_error(self) -> None:
+        with TemporaryDirectory() as directory, patch("src.web_app.DIST_DIR", Path(directory)):
+            client, _, _, _ = _client(Path(directory))
+            response = client.get("/")
+            self.assertEqual(response.status_code, 503)
+            self.assertIn(b"npm run build", response.data)
+
     def test_voice_lifecycle_finishes_audio_actions(self) -> None:
         client, _, runtime, engine = _client(Path("/nonexistent"))
 
@@ -273,15 +296,18 @@ class CameraRuntimeTests(unittest.TestCase):
         self.assertEqual(replacement, (Reaction.OK, "Perfect"))
 
     def test_browser_keeps_only_one_sound_effect_active(self) -> None:
-        html = (Path(__file__).parents[1] / "web" / "index.html").read_text(encoding="utf-8")
+        web = Path(__file__).parents[1] / "web" / "src"
+        hook = (web / "hooks" / "useRobotState.ts").read_text(encoding="utf-8")
+        voice = (web / "hooks" / "useVoice.ts").read_text(encoding="utf-8")
 
-        self.assertIn("function playGestureSound(url)", html)
-        self.assertIn("const audio = new Audio(url)", html)
-        self.assertIn("if (activeSfx) retireSfx(activeSfx)", html)
-        self.assertIn("activeSfxUrl === url", html)
-        self.assertIn("s.gesture_event !== lastGestureEvent", html)
-        self.assertNotIn("MAX_CONCURRENT_SFX", html)
-        self.assertNotIn("sfxAudio.src =", html)
+        self.assertIn("const playGestureSound = useCallback", hook)
+        self.assertIn("const audio = new Audio(url)", hook)
+        self.assertIn("stopGestureSound();", hook)
+        self.assertIn("sfxUrl.current === url", hook)
+        self.assertIn("s.gesture_event !== lastGestureEvent.current", hook)
+        self.assertIn("stopGestureSound();", voice)
+        self.assertNotIn("MAX_CONCURRENT_SFX", hook)
+        self.assertNotIn("sfxAudio.src =", hook)
 
 
 if __name__ == "__main__":

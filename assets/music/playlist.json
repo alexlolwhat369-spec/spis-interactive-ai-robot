@@ -1,13 +1,9 @@
 {
   "tracks": [
-    {"title": "EEYUH x Fluxxwave (Slowed and Reverb)", "category": "calm", "path": "assets/music/calm_eeyuh_fluxxwave.mp3"},
-    {"title": "Relaxing Music with Ocean Waves", "category": "calm", "path": "assets/music/calm_ocean_waves.mp3"},
-    {"title": "Enchanted Love", "category": "warm", "path": "assets/music/warm_enchanted_love.mp3"},
-    {"title": "Fly Away", "category": "warm", "path": "assets/music/warm_fly_away.mp3"},
-    {"title": "Good Time", "category": "happy", "path": "assets/music/happy_good_time.mp3"},
-    {"title": "Murder in My Mind", "category": "energetic", "path": "assets/music/energetic_murder_in_my_mind.mp3"},
-    {"title": "SPACE! (Super Slowed)", "category": "energetic", "path": "assets/music/energetic_space_super_slowed.mp3"},
-    {"title": "Happy Birthday to You", "category": "celebration", "path": "assets/music/celebration_happy_birthday.mp3"},
-    {"title": "Macarena", "category": "energetic", "path": "assets/music/energetic_macarena.mp3"}
+    {"title": "Calm (filler)", "category": "calm", "path": "assets/music/filler_calm.wav"},
+    {"title": "Warm (filler)", "category": "warm", "path": "assets/music/filler_warm.wav"},
+    {"title": "Happy (filler)", "category": "happy", "path": "assets/music/filler_happy.wav"},
+    {"title": "Energetic (filler)", "category": "energetic", "path": "assets/music/filler_energetic.wav"},
+    {"title": "Celebration (filler)", "category": "celebration", "path": "assets/music/filler_celebration.wav"}
   ]
 }

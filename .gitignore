@@ -25,6 +25,15 @@ ENV/
 htmlcov/
 .tox/
 
+# --- Generated filler music (regenerate via src/make_filler_music.py) ---
+assets/music/*.wav
+
+# --- Node / frontend build ---
+web/node_modules/
+web/dist/
+npm-debug.log*
+*.tsbuildinfo
+
 # --- Editors / IDE ---
 .vscode/
 .idea/
