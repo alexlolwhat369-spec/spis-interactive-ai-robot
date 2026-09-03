@@ -8,7 +8,7 @@ import { Transcript } from "@/components/Transcript";
 
 export default function App() {
   const music = useMusic();
-  const { state, gestures, stopGestureSound } = useRobotState(music);
+  const { state, gestures, stopGestureSound, previewGestureSound, soundError } = useRobotState(music);
   const voice = useVoice(music, stopGestureSound);
 
   return (
@@ -18,8 +18,9 @@ export default function App() {
           <h1 className="text-lg font-semibold tracking-tight">SPIS Interactive AI Robot</h1>
           <p className="text-sm text-muted-foreground">Gestures · voice · music — running on-device</p>
         </div>
-        <SettingsSheet gestures={gestures} state={state} />
+        <SettingsSheet gestures={gestures} state={state} onPreviewSound={previewGestureSound} />
       </header>
+      {soundError && <p role="alert" className="text-sm text-destructive">{soundError}</p>}
 
       <main className="grid gap-4 lg:grid-cols-2">
         <CameraPanel state={state} voice={voice} />

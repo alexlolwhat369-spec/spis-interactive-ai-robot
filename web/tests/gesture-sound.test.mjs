@@ -7,6 +7,8 @@ import ts from "typescript";
 test("React gesture playback preserves event IDs and a single effect channel", async () => {
   const effects = [];
   const audios = [];
+  const updates = [];
+  let nextError = null;
   let snapshot = null;
   let poll;
   class AudioStub {
@@ -18,7 +20,15 @@ test("React gesture playback preserves event IDs and a single effect channel", a
       audios.push(this);
     }
     addEventListener(name, callback) { this.listeners[name] = callback; }
-    play() { this.paused = false; return Promise.resolve(); }
+    play() {
+      if (nextError) {
+        const error = nextError;
+        nextError = null;
+        return Promise.reject(error);
+      }
+      this.paused = false;
+      return Promise.resolve();
+    }
     pause() { this.paused = true; }
     removeAttribute() { this.url = null; }
     load() {}
@@ -27,7 +37,7 @@ test("React gesture playback preserves event IDs and a single effect channel", a
     useCallback: (fn) => fn,
     useEffect: (fn) => effects.push(fn),
     useRef: (value) => ({ current: value }),
-    useState: (value) => [value, () => {}],
+    useState: (value) => [value, (next) => updates.push(next)],
   };
   const api = {
     getState: async () => snapshot,
@@ -45,6 +55,7 @@ test("React gesture playback preserves event IDs and a single effect channel", a
       throw new Error(`Unexpected module: ${name}`);
     },
     Audio: AudioStub,
+    DOMException,
     window: { setInterval: (fn) => { poll = fn; return 1; }, clearInterval: () => {} },
   };
   vm.runInNewContext(compiled, context);
@@ -74,6 +85,16 @@ test("React gesture playback preserves event IDs and a single effect channel", a
   await send("none", undefined);
   await send("peace", undefined);
   assert.equal(audios.length, 4, "older servers still work without event IDs");
+  nextError = new DOMException("autoplay blocked", "NotAllowedError");
+  hook.previewGestureSound("heart");
+  await new Promise(setImmediate);
+  assert.equal(updates.at(-1), "Gesture audio blocked by browser.");
+  assert.equal(audios[3].paused, true, "preview shares the same effect channel");
+  hook.previewGestureSound("heart");
+  assert.equal(audios.at(-1).url, "/sound/heart");
+  assert.equal(audios.at(-1).paused, false, "manual preview can retry a blocked effect");
+  hook.previewGestureSound("stop");
+  assert.equal(updates.at(-1), "Sound file not installed for stop.");
   cleanup.forEach((fn) => fn?.());
-  assert.equal(audios[3].paused, true, "unmount stops playback");
+  assert.equal(audios.at(-1).paused, true, "unmount stops playback");
 });

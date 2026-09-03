@@ -5,6 +5,7 @@ import type { MusicApi } from "@/hooks/useMusic";
 export function useRobotState(music: MusicApi) {
   const [state, setState] = useState<RobotState | null>(null);
   const [gestures, setGestures] = useState<GestureInfo[]>([]);
+  const [soundError, setSoundError] = useState("");
   const soundMap = useRef<Record<string, string>>({});
   const lastGesture = useRef<string | null>(null);
   const lastGestureEvent = useRef<number | undefined>(undefined);
@@ -27,6 +28,7 @@ export function useRobotState(music: MusicApi) {
     const active = sfxRef.current;
     if (active && !active.paused && !active.ended && sfxUrl.current === url) return;
     stopGestureSound();
+    setSoundError("");
     const audio = new Audio(url);
     audio.preload = "auto";
     audio.volume = 0.8;
@@ -36,8 +38,18 @@ export function useRobotState(music: MusicApi) {
       if (sfxRef.current === audio) stopGestureSound();
     };
     audio.addEventListener("ended", retire, { once: true });
-    audio.addEventListener("error", retire, { once: true });
-    void audio.play().catch(retire);
+    audio.addEventListener("error", () => {
+      if (sfxRef.current !== audio) return;
+      setSoundError("Gesture sound could not be loaded.");
+      retire();
+    }, { once: true });
+    void audio.play().catch((error: unknown) => {
+      if (sfxRef.current !== audio) return;
+      setSoundError(error instanceof DOMException && error.name === "NotAllowedError"
+        ? "Gesture audio blocked by browser."
+        : "Gesture sound playback failed.");
+      retire();
+    });
   }, [stopGestureSound]);
 
   useEffect(() => {
@@ -84,5 +96,11 @@ export function useRobotState(music: MusicApi) {
     };
   }, [applyServerState, playGestureSound]);
 
-  return { state, gestures, stopGestureSound };
+  const previewGestureSound = useCallback((label: string) => {
+    const url = soundMap.current[label];
+    if (url) playGestureSound(url);
+    else setSoundError(`Sound file not installed for ${label.replace(/_/g, " ")}.`);
+  }, [playGestureSound]);
+
+  return { state, gestures, stopGestureSound, previewGestureSound, soundError };
 }

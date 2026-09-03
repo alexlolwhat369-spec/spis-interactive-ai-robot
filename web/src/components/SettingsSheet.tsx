@@ -17,9 +17,11 @@ import type { GestureInfo, RobotState } from "@/lib/api";
 export function SettingsSheet({
   gestures,
   state,
+  onPreviewSound,
 }: {
   gestures: GestureInfo[];
   state: RobotState | null;
+  onPreviewSound: (label: string) => void;
 }) {
   return (
     <Sheet>
@@ -37,7 +39,7 @@ export function SettingsSheet({
           <div className="flex flex-col gap-6 pb-6">
             <section>
               <h3 className="mb-2 text-sm font-medium text-muted-foreground">Gesture reference</h3>
-              <GestureReference gestures={gestures} />
+              <GestureReference gestures={gestures} onPreviewSound={onPreviewSound} />
             </section>
             <Separator />
             <section>

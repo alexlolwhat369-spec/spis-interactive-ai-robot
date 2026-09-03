@@ -48,10 +48,3 @@ Thumbs.db
 .env
 .env.*
 !.env.example
-
-# User-provided copyrighted audio kept local.
-assets/sounds/heart_reaction.wav
-assets/sounds/ok_reaction.mp3
-assets/sounds/thumbs_up_reaction.mp3
-assets/sounds/angry_reaction.mp3
-assets/sounds/peace_reaction.wav

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+import hashlib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -214,13 +215,50 @@ class WebEndpointTests(unittest.TestCase):
                 for gesture in client.get("/gestures").get_json()["gestures"]
             }
             for label in sounds:
-                self.assertEqual(gestures[label]["sound"], f"/sound/{label}")
-                served = client.get(f"/sound/{label}")
+                version = hashlib.sha256(sounds[label].read_bytes()).hexdigest()[:16]
+                self.assertEqual(gestures[label]["sound"], f"/sound/{label}?v={version}")
+                self.assertEqual(gestures[label]["sound_name"], sounds[label].name)
+                served = client.get(gestures[label]["sound"])
                 self.assertEqual(served.status_code, 200)
                 expected_header = b"RIFF" if label in {"heart", "peace"} else b"ID3"
                 self.assertTrue(served.data.startswith(expected_header))
+                self.assertEqual(served.data, sounds[label].read_bytes())
+                self.assertEqual(served.mimetype, "audio/wav" if expected_header == b"RIFF" else "audio/mpeg")
+                self.assertTrue(served.cache_control.no_store)
                 served.close()
             self.assertEqual(client.get("/sound/unknown").status_code, 404)
+
+    def test_replacing_sound_changes_url_even_at_same_size(self) -> None:
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "peace.wav"
+            path.write_bytes(b"RIFFold-audio")
+            client, _, _, _ = _client(Path(directory), sounds={"peace": path})
+            def sound_url():
+                response = client.get("/gestures")
+                self.assertTrue(response.cache_control.no_store)
+                return next(g["sound"] for g in response.get_json()["gestures"] if g["label"] == "peace")
+            old_url = sound_url()
+            path.write_bytes(b"RIFFnew-audio")
+            new_url = sound_url()
+            self.assertNotEqual(old_url, new_url)
+            with client.get(new_url) as response:
+                self.assertEqual(response.data, b"RIFFnew-audio")
+
+    def test_selected_effects_are_packaged_and_served_exactly(self) -> None:
+        from src.web_app import (
+            DEFAULT_HEART_SOUND, DEFAULT_PEACE_SOUND, DEFAULT_OK_SOUND,
+            DEFAULT_ANGRY_SOUND, DEFAULT_THUMBS_UP_SOUND, DEFAULT_MOHAN_SOUND,
+        )
+        sounds = dict(heart=DEFAULT_HEART_SOUND, peace=DEFAULT_PEACE_SOUND,
+                      ok=DEFAULT_OK_SOUND, middle_finger=DEFAULT_ANGRY_SOUND,
+                      thumbs_up=DEFAULT_THUMBS_UP_SOUND, mohan=DEFAULT_MOHAN_SOUND)
+        client, _, _, _ = _client(Path.cwd(), sounds=sounds)
+        for label, path in sounds.items():
+            with self.subTest(label=label):
+                self.assertTrue(path.is_file(), f"Selected sound missing: {path.name}")
+                with client.get(f"/sound/{label}") as response:
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.data, path.read_bytes())
 
     def test_play_returns_stream_url_and_track_serves_bytes(self) -> None:
         with TemporaryDirectory() as directory:

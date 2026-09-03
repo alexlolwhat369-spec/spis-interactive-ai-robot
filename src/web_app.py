@@ -10,6 +10,7 @@ viewers share one capture without fighting over the device.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import sys
 import threading
 import time
@@ -381,8 +382,15 @@ def create_app(
         catalog = gesture_catalog()
         for entry in catalog:
             path = sounds.get(entry["label"])
-            entry["sound"] = f"/sound/{entry['label']}" if path is not None and path.is_file() else None
-        return jsonify({"gestures": catalog})
+            entry["sound"] = None
+            entry["sound_name"] = None
+            if path is not None and path.is_file():
+                version = hashlib.sha256(path.read_bytes()).hexdigest()[:16]
+                entry["sound"] = f"/sound/{entry['label']}?v={version}"
+                entry["sound_name"] = path.name
+        response = jsonify({"gestures": catalog})
+        response.cache_control.no_store = True
+        return response
 
     @app.route("/sound/<label>")
     def sound(label: str) -> Response:
@@ -391,7 +399,10 @@ def create_app(
         path = sounds.get(label)
         if path is None or not path.is_file():
             abort(404)
-        return send_file(path, mimetype="audio/mpeg", conditional=True)
+        mime = "audio/wav" if path.suffix.lower() == ".wav" else None
+        response = send_file(path, mimetype=mime, conditional=True, max_age=0)
+        response.cache_control.no_store = True
+        return response
 
     @app.route("/music/state")
     def music_state() -> Response:

@@ -36,6 +36,7 @@ export interface GestureInfo {
   reply: string;
   reaction: string;
   sound: string | null;
+  sound_name?: string | null;
 }
 
 export interface VoiceResult {
