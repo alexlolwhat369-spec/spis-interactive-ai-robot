@@ -46,6 +46,17 @@ python src/setup_assets.py
 echo "==> Downloading the voice models (Vosk speech + Piper voice, ~100 MB)"
 python src/setup_voice.py
 
+echo "==> Generating filler music (royalty-free placeholders for the demo)"
+python src/make_filler_music.py || echo "WARNING: could not generate filler music."
+
+echo "==> Building the web UI (React + shadcn/ui)"
+if command -v npm >/dev/null 2>&1; then
+  ( cd "$ROOT/web" && npm install && npm run build )
+else
+  echo "WARNING: npm not found — the browser UI will not be built."
+  echo "         Install Node.js 18+, then run:  cd web && npm install && npm run build"
+fi
+
 echo
 echo "Setup complete (camera + voice models installed)."
 echo "  Next: ./train-gestures   # capture the 5 gestures and train the model"
