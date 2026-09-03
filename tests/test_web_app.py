@@ -252,6 +252,11 @@ class WebEndpointTests(unittest.TestCase):
         sounds = dict(heart=DEFAULT_HEART_SOUND, peace=DEFAULT_PEACE_SOUND,
                       ok=DEFAULT_OK_SOUND, middle_finger=DEFAULT_ANGRY_SOUND,
                       thumbs_up=DEFAULT_THUMBS_UP_SOUND, mohan=DEFAULT_MOHAN_SOUND)
+        audio_files = {
+            path for path in DEFAULT_HEART_SOUND.parent.rglob("*")
+            if path.is_file() and path.suffix.lower() in {".wav", ".mp3", ".ogg"}
+        }
+        self.assertEqual(audio_files, set(sounds.values()), "Only selected effects should be shipped")
         client, _, _, _ = _client(Path.cwd(), sounds=sounds)
         for label, path in sounds.items():
             with self.subTest(label=label):

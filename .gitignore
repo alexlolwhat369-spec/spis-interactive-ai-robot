@@ -48,3 +48,9 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Retired audition assets; only the selected reaction clips are shipped.
+assets/sounds/candidates/
+assets/sounds/character_voice_samples/
+assets/sounds/github_samples/
+assets/sounds/reaction_lab/

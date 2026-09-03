@@ -20,8 +20,8 @@ Approved sources: heart = Marvin Gaye - Let's Get It On (first 7 seconds);
 peace = party-horn-soundeffectsfactory (3.811 seconds); OK = Ding Sound Effect 4;
 thumbs-up = zec53-business-upbeat-short-logo-10-sec-271916;
 angry = Roblox angry sound effect; Mohan = Josh Hutcherson Whistle.
-The candidates, github_samples, character_voice_samples, and reaction_lab
-folders are experiments, not the robot's configured effects.
+The old audition samples and reaction sound lab have been removed. Only the
+six selected clips above are shipped; stop has no assigned sound.
 
 Only one effect plays at a time. Its visual reaction uses the decoded file
 duration, so the face and sound start and finish together. Holding a gesture
