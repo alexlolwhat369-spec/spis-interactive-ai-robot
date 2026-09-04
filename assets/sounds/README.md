@@ -12,8 +12,16 @@ The robot plays a mapped sound once when a trained gesture becomes active:
 The heart clip is made from the first 7 seconds of a user-provided recording.
 The peace clip uses the user-provided party-horn-soundeffectsfactory.mp3,
 capped at 8 seconds (the full recording is shorter). It replaces Tapion Ocarina.
-The heart, peace, OK, thumbs-up, and angry files are explicitly ignored by Git and must
-not be published without redistribution rights.
+The selected reaction files belong alongside the code so a checkout does not
+silently lose its effects. Third-party recordings retain their original rights;
+their inclusion does not grant a separate redistribution license.
+
+Approved sources: heart = Marvin Gaye - Let's Get It On (first 7 seconds);
+peace = party-horn-soundeffectsfactory (3.811 seconds); OK = Ding Sound Effect 4;
+thumbs-up = zec53-business-upbeat-short-logo-10-sec-271916;
+angry = Roblox angry sound effect; Mohan = Josh Hutcherson Whistle.
+The old audition samples and reaction sound lab have been removed. Only the
+six selected clips above are shipped; stop has no assigned sound.
 
 Only one effect plays at a time. Its visual reaction uses the decoded file
 duration, so the face and sound start and finish together. Holding a gesture

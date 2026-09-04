@@ -52,9 +52,11 @@ function AudioControls() {
 export function SettingsSheet({
   gestures,
   state,
+  onPreviewSound,
 }: {
   gestures: GestureInfo[];
   state: RobotState | null;
+  onPreviewSound: (label: string) => void;
 }) {
   return (
     <Sheet>
@@ -80,7 +82,7 @@ export function SettingsSheet({
             <Separator />
             <section>
               <h3 className="mb-2 text-sm font-medium text-muted-foreground">Gesture reference</h3>
-              <GestureReference gestures={gestures} />
+              <GestureReference gestures={gestures} onPreviewSound={onPreviewSound} />
             </section>
             <Separator />
             <section>
